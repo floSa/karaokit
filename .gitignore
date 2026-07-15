@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.cache/
+
+# Node / web
+web/node_modules/
+web/dist/
+
+# Outils installés localement
+scripts/bin/
+
+# Bibliothèque générée (stems audio volumineux) — on garde l'index vide
+web/public/library/*/
+!web/public/library/index.json

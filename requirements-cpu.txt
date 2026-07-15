@@ -1,0 +1,19 @@
+# Dépendances Python — variante CPU (pas de GPU NVIDIA).
+# Installe torch en version CPU (wheels plus légers, aucune dépendance CUDA).
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+torch
+torchaudio
+
+# Brique 1 — séparation voix/instrumental
+demucs
+
+# Brique 3 (niveau 3) — transcription + forced alignment mot-à-mot
+whisperx
+
+# Brique 2 (niveau 2) — alignement forcé d'un texte connu sur la voix.
+# Utilise le moteur MMS_FA intégré à torchaudio (déjà installé ci-dessus) :
+# multilingue, wheel précompilé, AUCUN compilateur C++ requis. Rien à ajouter ici.
+
+# Brique 2 — récupération des paroles en ligne (LRCLIB, Musixmatch, Genius…)
+syncedlyrics
