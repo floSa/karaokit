@@ -7,6 +7,9 @@ voix/instrumental, récupération + synchronisation des paroles, et lecteur web
 avec surlignage mot-à-mot.
 
 > Le module Python s'importe sous le nom `karaoke` (`python -m karaoke …`).
+>
+> 🏗 Architecture interne (modules, flux de données) :
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 > 📄 Contexte, état de l'art et choix techniques : voir
 > [`karaoke-maison-etude.md`](karaoke-maison-etude.md).
