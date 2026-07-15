@@ -1,0 +1,116 @@
+:root {
+  --bg: #0d1020;
+  --panel: #161b34;
+  --text: #e8ecff;
+  --dim: #6b74a8;
+  --accent: #ff4d8d;
+  --sung: #8a93cf;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: radial-gradient(circle at 50% -10%, #1c2350, var(--bg));
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* --- Accueil --- */
+.home { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem; }
+.home h1 { font-size: 2.4rem; }
+.hint { color: var(--dim); }
+.songlist { list-style: none; padding: 0; display: grid; gap: 0.6rem; }
+.songlist button {
+  width: 100%;
+  display: flex; align-items: center; gap: 0.8rem;
+  padding: 1rem 1.2rem; border: none; border-radius: 12px;
+  background: var(--panel); color: var(--text); cursor: pointer;
+  font-size: 1.05rem; text-align: left; transition: transform .1s, background .2s;
+}
+.songlist button:hover { background: #1e2547; transform: translateY(-1px); }
+.badge { font-size: 1.3rem; }
+.song-title { font-weight: 600; }
+.song-artist { color: var(--dim); margin-left: auto; }
+
+/* --- Lecteur --- */
+.player { display: flex; flex-direction: column; height: 100vh; position: relative; }
+.player-head {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1rem 1.5rem; background: rgba(0,0,0,.25);
+}
+.back {
+  background: transparent; border: 1px solid var(--dim); color: var(--text);
+  border-radius: 8px; padding: .4rem .8rem; cursor: pointer;
+}
+.now { font-size: 1.1rem; }
+.src { margin-left: auto; color: var(--dim); font-size: .85rem; }
+.dl {
+  color: var(--text); text-decoration: none; font-size: .85rem;
+  border: 1px solid var(--dim); border-radius: 8px; padding: .35rem .7rem;
+}
+.dl:hover { background: var(--panel); }
+
+.lyrics {
+  flex: 1; overflow-y: auto; padding: 40vh 1.5rem;
+  text-align: center; scroll-behavior: smooth;
+}
+.line {
+  margin: 1.1rem 0; font-size: 1.6rem; font-weight: 600;
+  color: var(--dim); transition: color .3s, transform .3s, opacity .3s;
+  opacity: .5;
+}
+.line.past { opacity: .35; }
+.line.active { color: var(--text); font-size: 2.3rem; opacity: 1; transform: scale(1.02); }
+.line.future { opacity: .5; }
+
+.word { transition: color .15s; }
+.line.active .word { color: #aeb6ee; }
+.line.active .word.sung { color: #fff; }
+.line.active .word.singing { color: var(--accent); text-shadow: 0 0 18px var(--accent); }
+
+/* --- Barre d'édition de synchro --- */
+.edittools {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .7rem 1.5rem; background: rgba(255, 77, 141, .10);
+  border-bottom: 1px solid rgba(255, 77, 141, .35); font-size: .9rem;
+}
+.edittools button {
+  background: var(--panel); color: var(--text); border: 1px solid var(--dim);
+  border-radius: 8px; padding: .35rem .7rem; cursor: pointer;
+}
+.edittools button:disabled { opacity: .4; cursor: default; }
+.edittools button.save { background: var(--accent); border-color: var(--accent); font-weight: 600; }
+.edittools .sep { color: var(--dim); }
+.edittools .hint2 { color: var(--dim); }
+.savemsg { color: var(--accent); font-size: .85rem; }
+.line.selected { outline: 2px dashed var(--accent); outline-offset: 6px; border-radius: 8px; }
+
+/* --- Pré-roll (compte à rebours avant l'entrée du chant) --- */
+.preroll {
+  position: absolute; left: 50%; bottom: 128px; transform: translateX(-50%);
+  display: flex; gap: 14px;
+}
+.preroll .dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: rgba(255, 255, 255, .15); transition: background .15s, box-shadow .15s;
+}
+.preroll .dot.on { background: var(--accent); box-shadow: 0 0 16px var(--accent); }
+
+/* --- Contrôles --- */
+.controls {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1rem 1.5rem; background: rgba(0,0,0,.35);
+}
+.play {
+  width: 52px; height: 52px; border-radius: 50%; border: none;
+  background: var(--accent); color: #fff; font-size: 1.3rem; cursor: pointer;
+}
+.tc { color: var(--dim); font-variant-numeric: tabular-nums; min-width: 3rem; }
+.scrub { flex: 1; accent-color: var(--accent); }
+.guide {
+  display: flex; align-items: center; gap: .5rem;
+  color: var(--dim); font-size: .85rem;
+}
+.guide input { accent-color: var(--accent); width: 90px; }

@@ -1,0 +1,79 @@
+[
+  {
+    "slug": "demo-karaoke-maison",
+    "title": "Démo",
+    "artist": "Karaoké maison",
+    "hasLyrics": true,
+    "wordLevel": false
+  },
+  {
+    "slug": "hippie-hourrah-au-centre-du-paysage",
+    "title": "Au centre du paysage",
+    "artist": "Hippie Hourrah",
+    "hasLyrics": true,
+    "wordLevel": true
+  },
+  {
+    "slug": "hippie-hourrah-il-y-a-eu-un-soir-1",
+    "title": "Il y a eu un soir #1",
+    "artist": "Hippie Hourrah",
+    "hasLyrics": true,
+    "wordLevel": true
+  },
+  {
+    "slug": "hippie-hourrah-les-murs",
+    "title": "Les murs",
+    "artist": "Hippie Hourrah",
+    "hasLyrics": true,
+    "wordLevel": true
+  },
+  {
+    "slug": "hippie-hourrah-nuits-insondables",
+    "title": "Nuits insondables",
+    "artist": "Hippie Hourrah",
+    "hasLyrics": true,
+    "wordLevel": true
+  },
+  {
+    "slug": "hippie-hourrah-or-aux-dents-1",
+    "title": "Or aux dents #1",
+    "artist": "Hippie Hourrah",
+    "hasLyrics": true,
+    "wordLevel": true
+  },
+  {
+    "slug": "hippie-hourrah-or-aux-dents-2",
+    "title": "Or aux dents #2",
+    "artist": "Hippie Hourrah",
+    "hasLyrics": true,
+    "wordLevel": true
+  },
+  {
+    "slug": "hippie-hourrah-pinceau-au-tombeau",
+    "title": "Pinceau au tombeau",
+    "artist": "Hippie Hourrah",
+    "hasLyrics": true,
+    "wordLevel": true
+  },
+  {
+    "slug": "hippie-hourrah-pur-sang-rouge",
+    "title": "Pur sang rouge",
+    "artist": "Hippie Hourrah",
+    "hasLyrics": true,
+    "wordLevel": true
+  },
+  {
+    "slug": "hippie-hourrah-revenons-au-debut",
+    "title": "Revenons au début",
+    "artist": "Hippie Hourrah",
+    "hasLyrics": true,
+    "wordLevel": true
+  },
+  {
+    "slug": "hippie-hourrah-rorschach",
+    "title": "Rorschach",
+    "artist": "Hippie Hourrah",
+    "hasLyrics": true,
+    "wordLevel": true
+  }
+]
