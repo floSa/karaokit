@@ -110,4 +110,3 @@ Le projet a été conçu pour tourner **sans droits admin** :
 - venv amorcé via `get-pip.py` quand `ensurepip` est absent.
 
 Voir [`scripts/bootstrap.sh`](../scripts/bootstrap.sh).
-```

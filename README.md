@@ -148,6 +148,5 @@ Dans le lecteur, bouton **✎ Éditer** :
 - **Installation torch/whisperx capricieuse** → vérifie ta version de CUDA et
   adapte l'`--extra-index-url` dans `requirements-gpu.txt`
   (voir <https://pytorch.org/get-started/locally/>).
-- **Paroles fausses/décalées** → relance avec `--language`, ou édite le `.lrc`
-  à la main (prochaine étape : un petit éditeur de synchro).
-```
+- **Paroles fausses/décalées** → relance avec `--language`, `--realign`, ou
+  corrige à la main dans l'éditeur du lecteur (`python -m karaoke serve`).
