@@ -46,7 +46,7 @@ def main() -> int:
         ]
         data["wordLevel"] = any(len(ln.words) > 1 for ln in split)
         mf.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"  ✂ {mf.parent.name}: {len(lines)} -> {len(split)} lignes")
+        print(f"  {mf.parent.name}: {len(lines)} -> {len(split)} lignes")
         changed += 1
 
     _update_index(args.library)

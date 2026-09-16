@@ -95,13 +95,13 @@ def build(
     title, artist, slug = _identify(audio_path, title, artist)
     song_dir = library_dir / slug
     if (song_dir / "karaoke.json").exists() and not (force or realign):
-        print(f"⏭  Déjà présent : {song_dir} (--force pour recalculer, --realign pour re-synchroniser)")
+        print(f"Déjà présent : {song_dir} (--force pour recalculer, --realign pour re-synchroniser)")
         return (song_dir, True) if return_skipped else song_dir
     song_dir.mkdir(parents=True, exist_ok=True)
     duration = probe_duration(audio_path)
 
     notify("separation", slug=slug, title=title, artist=artist)
-    print(f"🎧 Morceau : {artist + ' — ' if artist else ''}{title}")
+    print(f"Morceau : {artist + ' — ' if artist else ''}{title}")
     print(f"   Device : {profile.device}  |  Sortie : {song_dir}")
 
     with ThreadPoolExecutor(max_workers=1) as pool:
@@ -115,7 +115,7 @@ def build(
         instru, voc = song_dir / "instrumental.mp3", song_dir / "vocals.mp3"
         with _timed(timings, "separation"):
             if instru.exists() and voc.exists() and not force:
-                print("   ↺ Stems déjà présents — réutilisation (pas de Demucs)")
+                print("   Stems déjà présents — réutilisation (pas de Demucs)")
                 stems = {"no_vocals": instru, "vocals": voc}
             else:
                 stems = separate.separate(audio_path, song_dir, profile)
@@ -132,9 +132,9 @@ def build(
             ok, score, detected = verify.lyrics_match(stems["vocals"], lyr.text, profile, language)
         shown = f"{score:.2f}" if score is not None else "n/a"
         if ok:
-            print(f"   ✓ Paroles vérifiées sur la voix (recouvrement {shown})")
+            print(f"   Paroles vérifiées sur la voix (recouvrement {shown})")
         else:
-            print(f"   ✗ Paroles rejetées : elles ne correspondent pas à la voix "
+            print(f"   Paroles rejetées : elles ne correspondent pas à la voix "
                   f"(recouvrement {shown} < {verify.MIN_OVERLAP}) — {lyr.source}")
             lyr = None
         language = language or detected
@@ -154,7 +154,7 @@ def build(
 
     if online_lines is not None and not realign:
         # Niveau 1 : LRC synchronisé en ligne.
-        print(f"   ✓ LRC synchronisé trouvé ({lyr.source})")
+        print(f"   LRC synchronisé trouvé ({lyr.source})")
         already_words = any(len(ln.words) > 1 for ln in online_lines)
         if word_level and not already_words and online_lines:
             print("3/4  Synchronisation : lignes fournies — mot-à-mot posé dans chaque ligne")
@@ -168,7 +168,7 @@ def build(
     elif plain_text:
         # Niveau 2 : on a le TEXTE propre -> on l'aligne mot-à-mot sur la voix.
         origin = "ré-aligné mot-à-mot" if online_lines is not None else "alignement forcé"
-        print(f"   ✓ Texte disponible ({lyr.source}) — {origin} sur la voix isolée")
+        print(f"   Texte disponible ({lyr.source}) — {origin} sur la voix isolée")
         print("3/4  Synchronisation (alignement forcé du texte)")
         with _timed(timings, "sync"):
             aligned = align.align_lyrics(stems["vocals"], plain_text, profile, language=language)
@@ -178,13 +178,13 @@ def build(
             # mot-à-mot que si l'alignement ne dérive pas trop (auto-contrôle).
             drift = _median_drift(aligned, online_lines)
             if drift is not None and drift > REALIGN_MAX_DRIFT:
-                print(f"   ⚠ Ré-alignement rejeté (dérive médiane {drift:.1f}s > "
+                print(f"   Ré-alignement rejeté (dérive médiane {drift:.1f}s > "
                       f"{REALIGN_MAX_DRIFT}s) — on garde la synchro en ligne.")
                 lines = online_lines
                 lyrics_source = f"{lyr.source} (ré-alignement rejeté, dérive {drift:.1f}s)"
             else:
                 d = f" (dérive {drift:.2f}s)" if drift is not None else ""
-                print(f"   ✓ Ré-alignement accepté{d}")
+                print(f"   Ré-alignement accepté{d}")
                 lines = aligned
                 lyrics_source = f"{lyr.source} + {origin}"
         else:
@@ -192,7 +192,7 @@ def build(
             lyrics_source = f"{lyr.source} + {origin}"
     else:
         # Niveau 3 : aucune parole fiable -> transcription à l'aveugle de la voix.
-        print("   ⚠ Aucune parole en ligne fiable — transcription automatique de la voix")
+        print("   Aucune parole en ligne fiable — transcription automatique de la voix")
         print("3/4  Transcription + synchronisation (WhisperX)")
         with _timed(timings, "sync"):
             lines = transcribe.transcribe_and_align(stems["vocals"], profile, language=language)
@@ -203,7 +203,7 @@ def build(
 
     lines = transcribe.remove_overlaps(lines)
     if not lines:
-        print("   ⚠ Aucune parole synchronisée produite (karaoké instrumental).")
+        print("   Aucune parole synchronisée produite (karaoké instrumental).")
 
     # 4) Écriture des sorties
     print("4/4  Écriture des fichiers")
@@ -240,7 +240,7 @@ def build(
     if update_index:
         _update_index(library_dir)
     steps = "  ".join(f"{k}={v}s" for k, v in timings.items())
-    print(f"✅ Terminé : {song_dir}  ⏱ {steps}")
+    print(f"Terminé : {song_dir}  ({steps})")
     return (song_dir, False) if return_skipped else song_dir
 
 
@@ -260,7 +260,7 @@ def build_folder(
         print(f"Aucun fichier audio trouvé dans {folder}")
         return []
 
-    print(f"📀 {len(files)} fichier(s) à traiter dans {folder}\n")
+    print(f"{len(files)} fichier(s) à traiter dans {folder}\n")
     t0 = time.perf_counter()
     done: list[Path] = []
     with ThreadPoolExecutor(max_workers=_LYRICS_WORKERS) as pool:
@@ -283,10 +283,10 @@ def build_folder(
                                   realign=realign, word_level=word_level,
                                   lyrics_future=futures.get(f), update_index=False))
             except Exception as exc:  # un fichier qui échoue ne bloque pas les autres
-                print(f"   ❌ Échec sur {f.name} : {exc}")
+                print(f"   Échec sur {f.name} : {exc}")
             print()
     _update_index(library_dir)
-    print(f"✅ Album terminé : {len(done)}/{len(files)} morceau(x) traité(s) "
+    print(f"Album terminé : {len(done)}/{len(files)} morceau(x) traité(s) "
           f"en {time.perf_counter() - t0:.0f} s.")
     return done
 

@@ -245,10 +245,10 @@ def _run_all():
     for fn in fns:
         try:
             fn()
-            print(f"  ✓ {fn.__name__}")
+            print(f"  ok     {fn.__name__}")
         except Exception as exc:
             failed += 1
-            print(f"  ✗ {fn.__name__}: {exc}")
+            print(f"  ÉCHEC  {fn.__name__}: {exc}")
     print(f"\n{len(fns) - failed}/{len(fns)} tests OK")
     return 1 if failed else 0
 

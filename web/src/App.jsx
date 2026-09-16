@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Home from "./Home.jsx";
+import Icon from "./Icon.jsx";
 import KaraokePlayer from "./KaraokePlayer.jsx";
 import Playlist from "./Playlist.jsx";
 import usePlaylist from "./usePlaylist.js";
@@ -72,7 +73,7 @@ export default function App() {
       )}
       <main className="main">
         <button className="side-toggle" onClick={() => setSideOpen((o) => !o)} title={sideOpen ? "Masquer la playlist" : "Afficher la playlist"}>
-          {sideOpen ? "⟨" : "☰"}
+          <Icon name={sideOpen ? "back" : "menu"} size={16} />
         </button>
         {slug ? (
           <KaraokePlayer
@@ -86,7 +87,7 @@ export default function App() {
         ) : (
           <>
             <header className="brand">
-              <h1>🎤 Karaokit</h1>
+              <h1>Karaokit</h1>
             </header>
             <Home
               library={library}

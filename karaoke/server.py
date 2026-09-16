@@ -392,7 +392,7 @@ def serve(port: int = 8765, app_root: Path | None = None, lib_root: Path | None 
     httpd = ThreadingHTTPServer(("0.0.0.0", port),
                                 make_handler(app_root, lib_root, music_roots, jobs, playlist, index))
     httpd.daemon_threads = True
-    print(f"🎤 Karaoké (avec éditeur) sur http://localhost:{port}  — Ctrl+C pour arrêter")
+    print(f"Karaokit sur http://localhost:{port}  — Ctrl+C pour arrêter")
     print("   Musique parcourable : " + (", ".join(map(str, music_roots)) or "aucune (--music DOSSIER)"))
     try:
         httpd.serve_forever()

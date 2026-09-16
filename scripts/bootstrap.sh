@@ -64,6 +64,6 @@ echo "==> Dépendances web + build…"
 ( cd "$ROOT/web" && npm ci && npm run build )
 
 echo ""
-echo "✅ Bootstrap terminé."
+echo "Bootstrap terminé."
 echo "   Traiter un morceau :  uv run karaoke build \"chemin/vers/morceau.flac\""
 echo "   Lecteur + éditeur  :  uv run karaoke serve     (http://localhost:8765)"

@@ -1,8 +1,7 @@
 import { useState } from "react";
+import Icon from "./Icon.jsx";
 
-const STATE_ICON = { ready: "", queued: "⏳", processing: null, error: "⚠", missing: "⚠", cancelled: "✕" };
-
-// Colonne de gauche : la playlist. Glisser-déposer pour réordonner, ✕ pour
+// Colonne de gauche : la playlist. Glisser-déposer pour réordonner, croix pour
 // retirer, clic sur un titre prêt pour le chanter.
 export default function Playlist({ playlist, currentId, onPlay, autoNext, setAutoNext }) {
   const { items, error, remove, reorder, clear } = playlist;
@@ -59,7 +58,7 @@ export default function Playlist({ playlist, currentId, onPlay, autoNext, setAut
             }}
             onDragEnd={reset}
           >
-            <span className="grip" aria-hidden>⋮⋮</span>
+            <span className="grip"><Icon name="grip" size={14} /></span>
             <button
               className="pl-main"
               disabled={it.state !== "ready"}
@@ -67,7 +66,7 @@ export default function Playlist({ playlist, currentId, onPlay, autoNext, setAut
               title={it.state === "ready" ? "Chanter" : it.label}
             >
               <span className="pl-title">
-                {it.id === currentId && <span className="now-icon">▶ </span>}
+                {it.id === currentId && <span className="now-dot" aria-label="en lecture" />}
                 {it.title}
               </span>
               <span className="pl-sub">
@@ -75,14 +74,14 @@ export default function Playlist({ playlist, currentId, onPlay, autoNext, setAut
                   it.artist || "prêt"
                 ) : (
                   <>
-                    {it.state === "processing" ? <span className="spinner" aria-hidden /> : STATE_ICON[it.state]}{" "}
+                    {it.state === "processing" && <><span className="spinner" aria-hidden />{" "}</>}
                     {it.label}
                     {it.elapsed != null && ` · ${it.elapsed} s`}
                   </>
                 )}
               </span>
             </button>
-            <button className="pl-remove" onClick={() => remove(it.id)} aria-label={`Retirer ${it.title}`}>✕</button>
+            <button className="pl-remove" onClick={() => remove(it.id)} aria-label={`Retirer ${it.title}`}><Icon name="close" size={14} /></button>
           </li>
         ))}
         {dragId !== null && overIndex === items.length && <li className="drop-end" />}

@@ -117,5 +117,5 @@ def export_video(song_dir: Path, resolution: tuple[int, int] = (1280, 720)) -> P
     data["video"] = out.name
     manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print(f"✅ Vidéo : {out}")
+    print(f"Vidéo : {out}")
     return out

@@ -103,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
                     word_level=not args.line_only,
                 )
         except Exception as exc:  # message clair plutôt qu'un traceback brut
-            print(f"❌ Erreur : {exc}", file=sys.stderr)
+            print(f"Erreur : {exc}", file=sys.stderr)
             return 1
         return 0
 
@@ -128,19 +128,19 @@ def _cmd_export(args) -> int:
                 export_video(d, res)
                 ok += 1
             except Exception as exc:
-                print(f"   ❌ {exc}")
-        print(f"\n✅ {ok}/{len(dirs)} vidéo(s) exportée(s).")
+                print(f"   Erreur : {exc}")
+        print(f"\n{ok}/{len(dirs)} vidéo(s) exportée(s).")
         return 0
 
     song = Path(args.song)
     song_dir = song if song.is_dir() else config.DEFAULT_LIBRARY_DIR / args.song
     if not (song_dir / "karaoke.json").exists():
-        print(f"❌ Morceau introuvable : {song_dir} (lance d'abord 'build')", file=sys.stderr)
+        print(f"Morceau introuvable : {song_dir} (lance d'abord 'build')", file=sys.stderr)
         return 1
     try:
         export_video(song_dir, res)
     except Exception as exc:
-        print(f"❌ Erreur export : {exc}", file=sys.stderr)
+        print(f"Erreur export : {exc}", file=sys.stderr)
         return 1
     return 0
 
@@ -157,7 +157,7 @@ def _cmd_list() -> int:
         print("Bibliothèque vide.")
         return 0
     for e in entries:
-        mark = "🎤" if e["hasLyrics"] else "🎹"
+        mark = "paroles " if e["hasLyrics"] else "instru  "
         artist = f"{e['artist']} — " if e["artist"] else ""
         print(f"  {mark} {artist}{e['title']}  ({e['slug']})")
     return 0

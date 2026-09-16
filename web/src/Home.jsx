@@ -65,7 +65,7 @@ export default function Home({ library, onAdd, onPlaySlug, initialTab = "library
       {!results && (
         <nav className="tabs">
           <button className={tab === "library" ? "on" : ""} onClick={() => setTab("library")}>Bibliothèque ({library.length})</button>
-          <button className={tab === "browse" ? "on" : ""} onClick={() => setTab("browse")}>📁 Parcourir l'ordinateur</button>
+          <button className={tab === "browse" ? "on" : ""} onClick={() => setTab("browse")}>Parcourir l'ordinateur</button>
         </nav>
       )}
 

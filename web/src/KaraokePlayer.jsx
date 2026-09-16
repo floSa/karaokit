@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiBase } from "./api.js";
+import Icon from "./Icon.jsx";
 
 // Lecteur karaoké : joue l'instrumental (+ voix-guide optionnelle) et surligne
 // les paroles mot-à-mot en fonction du temps de lecture.
@@ -166,7 +167,7 @@ export default function KaraokePlayer({ slug, onBack, autoPlay = false, onEnded,
       setData((d) => ({ ...d, lines: editLines }));
       setEditing(false);
       setEditLines(null);
-      setSaveMsg("Enregistré ✓");
+      setSaveMsg("Enregistré");
     } catch (e) {
       setSaveMsg("Échec : " + e.message + " — lance le serveur : uv run karaoke serve");
     }
@@ -189,7 +190,7 @@ export default function KaraokePlayer({ slug, onBack, autoPlay = false, onEnded,
     return (
       <div className="player">
         <p className="hint">Morceau introuvable.</p>
-        <button className="back" onClick={onBack}>← Retour</button>
+        <button className="back" onClick={onBack}><Icon name="back" size={14} /> Retour</button>
       </div>
     );
   }
@@ -197,7 +198,7 @@ export default function KaraokePlayer({ slug, onBack, autoPlay = false, onEnded,
   return (
     <div className={`player${playing ? "" : " paused"}`}>
       <header className="player-head">
-        <button className="back" onClick={onBack}>← Retour</button>
+        <button className="back" onClick={onBack}><Icon name="back" size={14} /> Retour</button>
         <div className="now">
           <strong>{data.title}</strong>
           {data.artist && <span> — {data.artist}</span>}
@@ -205,10 +206,10 @@ export default function KaraokePlayer({ slug, onBack, autoPlay = false, onEnded,
         <div className="src">{upNext ? `ensuite : ${upNext}` : data.lyrics_source}</div>
         {saveMsg && <span className="savemsg">{saveMsg}</span>}
         {data.video && !editing && (
-          <a className="dl" href={`${base}/${data.video}`} download>⬇︎ vidéo</a>
+          <a className="dl" href={`${base}/${data.video}`} download>Vidéo MP4</a>
         )}
         <button className="back" onClick={editing ? cancelEdit : enterEdit}>
-          {editing ? "✕ Annuler" : "✎ Éditer"}
+          {editing ? "Annuler" : "Éditer la synchro"}
         </button>
       </header>
 
@@ -219,13 +220,13 @@ export default function KaraokePlayer({ slug, onBack, autoPlay = false, onEnded,
           <button onClick={() => shiftAll(0.1)}>+0,1 s</button>
           <span className="sep">|</span>
           <button disabled={selIdx < 0} onClick={setLineHere}>
-            ⇩ Caler la ligne ici ({fmt(time)})
+            Caler la ligne ici ({fmt(time)})
           </button>
           <span className="hint2">
             {selIdx >= 0 ? `ligne ${selIdx + 1} sélectionnée` : "clique une ligne pour la sélectionner"}
           </span>
           <span className="sep">|</span>
-          <button className="save" onClick={save}>💾 Enregistrer</button>
+          <button className="save" onClick={save}>Enregistrer</button>
         </div>
       )}
 
@@ -251,7 +252,7 @@ export default function KaraokePlayer({ slug, onBack, autoPlay = false, onEnded,
 
       <div className="controls">
         <button className="play" onClick={togglePlay} aria-label={playing ? "Pause" : "Lecture"}>
-          {buffering && playing ? "…" : playing ? "⏸" : "▶"}
+          {buffering && playing ? <span className="spinner big" /> : <Icon name={playing ? "pause" : "play"} size={22} />}
         </button>
         <span className="tc">{fmt(time)}</span>
         <input
@@ -265,7 +266,7 @@ export default function KaraokePlayer({ slug, onBack, autoPlay = false, onEnded,
         />
         <span className="tc">{fmt(duration)}</span>
         <label className="guide">
-          🎙 guide
+          Voix guide
           <input
             type="range"
             min={0}
