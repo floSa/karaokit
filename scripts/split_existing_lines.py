@@ -3,7 +3,7 @@
 Utile pour corriger a posteriori les titres passés en niveau 3 (WhisperX), dont
 les segments peuvent être de très longues phrases, sans relancer tout le pipeline.
 
-Usage :  python scripts/split_existing_lines.py [--max-words 9]
+Usage :  uv run python scripts/split_existing_lines.py [--max-words 9]
 """
 
 import argparse

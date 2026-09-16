@@ -39,7 +39,11 @@ def main(argv: list[str] | None = None) -> int:
     p_build.add_argument("--force", action="store_true", help="Tout recalculer (y compris Demucs).")
     p_build.add_argument(
         "--realign", action="store_true",
-        help="Forcer l'alignement mot-à-mot sur la voix, même si un LRC synchronisé existe.",
+        help="Ignorer la synchro de ligne en ligne et ré-aligner tout le texte sur la voix.",
+    )
+    p_build.add_argument(
+        "--line-only", action="store_true",
+        help="Ne pas poser le mot-à-mot dans un LRC ligne-à-ligne (le garder tel quel).",
     )
 
     sub.add_parser("list", help="Lister les morceaux de la bibliothèque")
@@ -51,6 +55,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p_serve = sub.add_parser("serve", help="Servir l'app web + éditeur de synchro (sauvegarde locale)")
     p_serve.add_argument("--port", type=int, default=8765, help="Port (défaut 8765).")
+    p_serve.add_argument("--library", type=Path, default=config.DEFAULT_LIBRARY_DIR,
+                         help="Dossier bibliothèque à servir.")
 
     args = parser.parse_args(argv)
 
@@ -62,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "serve":
         from .server import serve
-        serve(port=args.port)
+        serve(port=args.port, lib_root=args.library)
         return 0
 
     if args.command == "build":
@@ -77,6 +83,7 @@ def main(argv: list[str] | None = None) -> int:
                     language=args.language,
                     force=args.force,
                     realign=args.realign,
+                    word_level=not args.line_only,
                 )
             else:
                 build(
@@ -88,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
                     language=args.language,
                     force=args.force,
                     realign=args.realign,
+                    word_level=not args.line_only,
                 )
         except Exception as exc:  # message clair plutôt qu'un traceback brut
             print(f"❌ Erreur : {exc}", file=sys.stderr)

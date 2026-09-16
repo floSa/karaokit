@@ -46,6 +46,7 @@ class Profile:
     demucs_model: str          # modèle de séparation
     whisper_model: str         # taille du modèle ASR
     whisper_compute: str       # type de calcul (float16 GPU / int8 CPU)
+    verify_model: str          # Whisper rapide pour vérifier les paroles trouvées
 
     @property
     def is_gpu(self) -> bool:
@@ -55,27 +56,29 @@ class Profile:
 def build_profile(device: str) -> Profile:
     """Choisit des modèles adaptés au device.
 
-    - CPU : modèles plus légers pour rester utilisable (quelques min / morceau).
-    - GPU : modèles fine-tunés, plus précis.
+    Demucs : `htdemucs_ft` partout — on n'exécute que son sous-modèle « voix »
+    (voir separate.py), donc le coût est celui d'un modèle simple.
     """
     if device == "cuda":
         return Profile(
             device="cuda",
-            demucs_model="htdemucs_ft",   # fine-tuné, meilleure qualité
+            demucs_model="htdemucs_ft",
             whisper_model="large-v3",     # meilleure transcription
             whisper_compute="float16",
+            verify_model="small",
         )
     return Profile(
         device="cpu",
-        demucs_model="htdemucs",          # standard, plus rapide
+        demucs_model="htdemucs_ft",
         whisper_model="small",            # compromis vitesse/qualité en CPU
         whisper_compute="int8",
+        verify_model="base",
     )
 
 
 # --- Chemins ---------------------------------------------------------------
 
-# Racine du projet (…/kaka)
+# Racine du projet
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # La bibliothèque est servie directement par l'app web (dossier public de Vite).

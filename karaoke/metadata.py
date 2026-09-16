@@ -12,7 +12,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from .utils import ffmpeg_bin
+from .utils import ffprobe_bin
 
 # Dossiers « génériques » qui ne sont pas des noms d'artiste.
 _GENERIC_DIRS = {
@@ -21,18 +21,11 @@ _GENERIC_DIRS = {
 }
 
 
-def _ffprobe_bin() -> str:
-    """ffprobe est livré à côté de ffmpeg (même dossier)."""
-    ff = Path(ffmpeg_bin())
-    probe = ff.with_name("ffprobe")
-    return str(probe) if probe.exists() else "ffprobe"
-
-
 def _read_tags(path: Path) -> dict[str, str]:
     """Renvoie les tags (clés en minuscules) via ffprobe, ou {} si indisponible."""
     try:
         out = subprocess.run(
-            [_ffprobe_bin(), "-v", "quiet", "-print_format", "json",
+            [ffprobe_bin(), "-v", "quiet", "-print_format", "json",
              "-show_format", str(path)],
             check=True, stdout=subprocess.PIPE,
         ).stdout

@@ -12,7 +12,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from .utils import ffmpeg_bin
+from .utils import ffmpeg_bin, probe_duration
 
 # Couleurs ASS au format &HAABBGGRR (alpha, bleu, vert, rouge).
 _UNSUNG = "&H00EEB6AE"   # lavande (mot pas encore chanté) = #AEB6EE
@@ -27,17 +27,6 @@ def _ass_time(seconds: float) -> str:
     m, cs = divmod(cs, 6000)
     s, cs = divmod(cs, 100)
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
-
-
-def _probe_duration(path: Path) -> float:
-    ff = Path(ffmpeg_bin())
-    probe = ff.with_name("ffprobe")
-    out = subprocess.run(
-        [str(probe) if probe.exists() else "ffprobe", "-v", "quiet",
-         "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
-        check=True, stdout=subprocess.PIPE,
-    ).stdout.decode().strip()
-    return float(out)
 
 
 def build_ass(lines: list[dict], width: int, height: int) -> str:
@@ -104,7 +93,9 @@ def export_video(song_dir: Path, resolution: tuple[int, int] = (1280, 720)) -> P
     ass_content = build_ass(lines, width, height)
     (song_dir / "karaoke.ass").write_text(ass_content, encoding="utf-8")
 
-    duration = _probe_duration(instrumental)
+    duration = probe_duration(instrumental)
+    if duration is None:
+        raise RuntimeError(f"Durée illisible : {instrumental}")
     out = song_dir / "karaoke.mp4"
 
     # On travaille depuis song_dir pour éviter tout échappement de chemin dans le filtre.

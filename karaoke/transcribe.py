@@ -14,6 +14,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import Profile
+from .utils import preload_cuda_libs
+
+_MODELS: dict[tuple, object] = {}  # modèles WhisperX chargés une fois par processus
 
 
 @dataclass
@@ -40,6 +43,7 @@ def transcribe_and_align(
     language: str | None = None,
 ) -> list[Line]:
     """Transcrit + aligne la piste voix. Renvoie une liste de lignes horodatées."""
+    preload_cuda_libs()  # sinon « libcublas.so.12 is not found » sur GPU
     try:
         import whisperx
     except ImportError as exc:
@@ -52,24 +56,51 @@ def transcribe_and_align(
 
     audio = whisperx.load_audio(str(vocals))
 
-    model = whisperx.load_model(
-        profile.whisper_model,
-        device,
-        compute_type=profile.whisper_compute,
-        language=language,
-    )
+    key = ("asr", profile.whisper_model, device, language)
+    if key not in _MODELS:
+        _MODELS[key] = whisperx.load_model(
+            profile.whisper_model,
+            device,
+            compute_type=profile.whisper_compute,
+            language=language,
+        )
+    model = _MODELS[key]
     batch_size = 16 if profile.is_gpu else 4
     result = model.transcribe(audio, batch_size=batch_size, language=language)
     lang = result.get("language", language or "en")
 
     # Alignement forcé mot-à-mot
-    align_model, meta = whisperx.load_align_model(language_code=lang, device=device)
+    akey = ("align", lang, device)
+    if akey not in _MODELS:
+        _MODELS[akey] = whisperx.load_align_model(language_code=lang, device=device)
+    align_model, meta = _MODELS[akey]
     aligned = whisperx.align(
         result["segments"], align_model, meta, audio, device,
         return_char_alignments=False,
     )
 
     return _to_lines(aligned.get("segments", []))
+
+
+def remove_overlaps(lines: list[Line]) -> list[Line]:
+    """Garantit des mots strictement enchaînés (début croissant, fin ≤ début suivant).
+
+    Les alignements par fenêtre ou les LRC communautaires peuvent faire déborder
+    un mot sur le suivant : deux mots « en cours » à l'écran. On rogne la fin du
+    premier (sans jamais le rendre négatif) et on recalcule les bornes de ligne.
+    """
+    words = [w for ln in lines for w in ln.words]
+    for a, b in zip(words, words[1:]):
+        if b.start < a.start:
+            b.start = a.start
+        if a.end > b.start:
+            a.end = max(a.start, b.start)
+        if b.end < b.start:
+            b.end = b.start
+    for ln in lines:
+        if ln.words:
+            ln.start, ln.end = ln.words[0].start, ln.words[-1].end
+    return lines
 
 
 def split_long_lines(lines: list[Line], max_words: int = 9) -> list[Line]:

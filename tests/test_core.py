@@ -9,7 +9,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from karaoke import lrc
-from karaoke.align import _normalize, _rebuild_lines
+from karaoke.align import _normalize, _rebuild_lines, interpolate_words
+from karaoke.lyrics import best_search_match, clean_title
+from karaoke.server import parse_range
+from karaoke.transcribe import remove_overlaps
+from karaoke.verify import MIN_OVERLAP, overlap
 from karaoke.export_video import _ass_time, _karaoke_text, build_ass
 from karaoke.metadata import _artist_from_path, _title_from_name
 from karaoke.transcribe import Line, Word
@@ -110,6 +114,63 @@ def test_build_ass_structure():
     ass = build_ass(lines, 1280, 720)
     assert "PlayResX: 1280" in ass
     assert ass.count("Dialogue:") == 1
+
+
+def test_clean_title():
+    assert clean_title("SOS (Album Version)") == "SOS"
+    assert clean_title("Hey Jude - Remastered 2015") == "Hey Jude"
+    # Parenthèses qui font partie du titre : conservées.
+    assert clean_title("P.S. (I'm Still Not Over You) (Album Version)") == "P.S. (I'm Still Not Over You)"
+    assert clean_title("If It's Lovin' That You Want (Pt. 2)") == "If It's Lovin' That You Want (Pt. 2)"
+
+
+def test_best_search_match_requires_duration():
+    results = [
+        {"duration": 180.0, "syncedLyrics": "[00:01.00]a"},
+        {"duration": 227.0, "plainLyrics": "plain"},
+        {"duration": 226.0, "syncedLyrics": "[00:01.00]b"},
+    ]
+    assert best_search_match(results, None) is None  # pas de durée : pas de pari
+    assert best_search_match(results, 226.9)["syncedLyrics"] == "[00:01.00]b"  # synchronisé d'abord
+    assert best_search_match(results, 300.0) is None
+
+
+def test_lyrics_overlap_rejects_other_song():
+    heard = "you promised me good days but all are like sunday for my words to come out right my evil needs your inside"
+    right = "You promised me good days\nBut all are like Sunday\nFor my words to come out right\nMy evil needs your inside"
+    wrong = "Heute morgen wacht ich dann auf\nAlles ganz still und leise\nNur der Punk ist auf dem Weg nach Haus"
+    assert overlap(heard, right) >= MIN_OVERLAP
+    assert overlap(heard, wrong) < MIN_OVERLAP
+    assert overlap("la la", right) is None  # trop peu de mots pour juger
+
+
+def test_interpolate_words():
+    line = interpolate_words(["a", "longword"], 10.0, 20.0)
+    assert line.start == 10.0 and len(line.words) == 2
+    assert line.words[0].end == line.words[1].start  # enchaînés
+    assert line.words[1].end - line.words[1].start > line.words[0].end - line.words[0].start
+    assert line.words[-1].end <= 20.0
+
+
+def test_remove_overlaps():
+    lines = [
+        Line(0, 3, [Word("a", 0.0, 1.5), Word("b", 1.0, 3.0)]),
+        Line(2.5, 4, [Word("c", 2.5, 4.0)]),
+    ]
+    remove_overlaps(lines)
+    words = [w for l in lines for w in l.words]
+    assert all(x.end <= y.start for x, y in zip(words, words[1:]))
+    assert lines[0].end == words[1].end
+
+
+def test_parse_range():
+    assert parse_range(None, 100) is None
+    assert parse_range("bytes=0-", 100) == (0, 99)
+    assert parse_range("bytes=10-19", 100) == (10, 19)
+    assert parse_range("bytes=-10", 100) == (90, 99)
+    assert parse_range("bytes=50-500", 100) == (50, 99)
+    assert parse_range("bytes=100-", 100) is False
+    assert parse_range("bytes=0-1,5-6", 100) is None
 
 
 def _run_all():
