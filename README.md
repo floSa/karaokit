@@ -6,7 +6,7 @@ Transforme un fichier audio (FLAC, MP3, WAV…) en karaoké : séparation
 voix/instrumental, récupération + synchronisation des paroles, et lecteur web
 avec surlignage mot-à-mot.
 
-> Le module Python s'importe sous le nom `karaoke` (`python -m karaoke …`).
+> Le module Python s'importe sous le nom `karaoke` (`uv run karaoke …`).
 >
 > 🏗 Architecture interne (modules, flux de données) :
 > [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
@@ -18,16 +18,18 @@ avec surlignage mot-à-mot.
 
 | Fonction | État | Détail |
 |---|:---:|---|
-| Séparation voix/instru (Demucs) | ✅ | ~90 s/titre en CPU ; stems mis en cache |
-| Paroles niveau 1 (LRC synchronisé en ligne) | ✅ | via `syncedlyrics` (LRCLIB, Musixmatch, Genius…) |
+| Séparation voix/instru (Demucs) | ✅ | ~7 s/titre sur GPU (sous-modèle voix de `htdemucs_ft`) ; stems mis en cache |
+| Paroles niveau 1 (LRC synchronisé en ligne) | ✅ | LRCLIB direct avec la durée du titre, puis `syncedlyrics` ; **mot-à-mot posé dans chaque ligne** |
+| Vérification des paroles trouvées | ✅ | une recherche floue qui ramène un autre morceau est rejetée (Whisper rapide) |
 | Paroles niveau 2 (alignement forcé du texte) | ✅ | torchaudio **MMS_FA** ; validé : **médian 80 ms**, 19/19 lignes < 1 s |
 | Paroles niveau 3 (transcription à l'aveugle) | ✅ | WhisperX si aucune parole en ligne |
 | Métadonnées auto (tags FLAC) | ✅ | ffprobe ; plus besoin de `--artist/--title` |
 | Traitement d'un album (dossier) | ✅ | `build <dossier>` |
 | Surlignage mot-à-mot (`--realign`) | ✅ | timecodes par mot dans `karaoke.json` |
-| Lecteur web (React) | ✅ | surlignage, pré-roll, mixeur guide, raccourcis clavier |
+| Lecteur web (React) | ✅ | surlignage progressif, pré-roll, voix-guide, raccourcis, lien direct `#/<slug>` |
 | Export vidéo MP4 (ASS `\k`) | ✅ | `export <slug>` / `export all` — 1280×720 H.264+AAC, vérifié à l'image |
 | Garde-fou anti-dérive (`--realign`) | ✅ | rejette un ré-alignement qui dérive (> 1,5 s) |
+| Lecteur : seek, streaming, fluidité | ✅ | HTTP Range, 1er son en ~0,2 s, remplissage du mot en CSS |
 | Découpage des lignes trop longues | ✅ | niveau 3 : une ligne de 200 mots → 44 lignes |
 | Éditeur de synchro (décalage + « caler ici ») | ✅ | serveur `serve` (stdlib) ; sauvegarde JSON/LRC vérifiée |
 
@@ -49,56 +51,50 @@ Fichier audio  ─▶  [1] Séparation (Demucs)  ─▶  instrumental + voix iso
                         App web React  ◀─────┘  (lecteur + surlignage)
 ```
 
-- **`karaoke/`** — pipeline Python (CLI `python -m karaoke`).
+- **`karaoke/`** — pipeline Python (CLI `uv run karaoke`).
 - **`web/`** — app web Vite + React (lecteur karaoké).
-- **`scripts/bootstrap.sh`** — installe tout **sans sudo** (ffmpeg, Node, venv).
+- **`scripts/bootstrap.sh`** — installe tout **sans sudo** (ffmpeg, uv, Node).
+- **`scripts/bench_player.py`** — test de bout en bout du lecteur dans Chromium.
 
 Le code est **device-agnostique** : il détecte automatiquement le GPU (CUDA) et
-choisit des modèles adaptés. Deux jeux de dépendances : `requirements-cpu.txt` et
-`requirements-gpu.txt`.
+choisit des modèles adaptés. Dépendances dans `pyproject.toml` (uv), variantes
+`--extra gpu` et `--extra cpu`.
 
 ## Installation
 
 ```bash
-# Variante CPU (défaut) — ou 'gpu' si tu as une carte NVIDIA
-scripts/bootstrap.sh cpu
-
-# ffmpeg local dans le PATH pour la session (si installé par le script)
-export PATH="$PWD/scripts/bin:$PATH"
+scripts/bootstrap.sh gpu      # carte NVIDIA — ou 'cpu'
 ```
 
-> Le premier lancement télécharge les modèles (Demucs, WhisperX) : compte
-> quelques centaines de Mo et un peu de patience.
+> Le premier lancement télécharge les modèles (Demucs, MMS_FA, Whisper) : compte
+> quelques centaines de Mo et un peu de patience. ffmpeg est trouvé automatiquement
+> (système ou `scripts/bin/`).
 
 ## Utilisation
 
 ```bash
-source .venv/bin/activate
-export PATH="$PWD/scripts/bin:$PATH"      # ffmpeg local
-
 # 1) Traiter un morceau — l'artiste/titre est lu dans les tags du fichier
-python -m karaoke build "morceau.flac"
-python -m karaoke build morceau.flac --language fr
+uv run karaoke build "morceau.flac"
 
-# 2) Traiter un ALBUM entier (dossier) d'un coup
-python -m karaoke build "/mnt/c/Users/.../Album"
+# 2) Traiter un ALBUM entier (dossier) d'un coup — modèles chargés une seule fois
+uv run karaoke build "/mnt/c/Users/.../Album"
 
-# 3) Forcer le mot-à-mot (alignement sur la voix) même si un LRC existe déjà
-python -m karaoke build morceau.flac --realign --language fr
+# 3) Variantes de synchro
+uv run karaoke build morceau.flac --line-only     # garder le LRC en ligne ligne-à-ligne
+uv run karaoke build morceau.flac --realign       # ignorer les timecodes en ligne, tout ré-aligner
 
 # 4) Lister la bibliothèque
-python -m karaoke list
+uv run karaoke list
 
 # 5) Exporter une vidéo karaoké MP4 (sous-titres incrustés, effet mot-à-mot)
-python -m karaoke export hippie-hourrah-revenons-au-debut   # slug (voir 'list')
-python -m karaoke export all                                # tous les morceaux
+uv run karaoke export hippie-hourrah-revenons-au-debut   # slug (voir 'list')
+uv run karaoke export all
 
-# 6a) Lecteur web en développement (rechargement à chaud)
+# 6a) Lecteur web + ÉDITEUR de synchro (après `cd web && npm run build`)
+uv run karaoke serve               # http://localhost:8765
+
+# 6b) Lecteur web en développement (rechargement à chaud)
 cd web && npm run dev              # http://localhost:5173
-
-# 6b) Lecteur web + ÉDITEUR de synchro (sauvegarde locale) — nécessite un build
-cd web && npm run build && cd ..
-python -m karaoke serve            # http://localhost:8765
 ```
 
 **Raccourcis clavier du lecteur** : `Espace` = lecture/pause · `←` / `→` = ±5 s ·
@@ -111,7 +107,7 @@ Dans le lecteur, bouton **✎ Éditer** :
 - **Caler la ligne ici** : sélectionne une ligne (clic), lance la lecture, et cale
   son départ sur l'instant courant.
 - **💾 Enregistrer** : réécrit `karaoke.json` + `lyrics.lrc` via le serveur local
-  (`python -m karaoke serve`). En mode `npm run dev`, l'éditeur contacte
+  (`uv run karaoke serve`). En mode `npm run dev`, l'éditeur contacte
   automatiquement le serveur sur le port 8765 (lance-le en parallèle).
 
 ## Options utiles
@@ -121,7 +117,8 @@ Dans le lecteur, bouton **✎ Éditer** :
 | `--device auto\|cpu\|cuda` | Force le matériel (défaut : auto-détection). |
 | `--language fr` | Force la langue (améliore transcription et alignement). |
 | `--title` / `--artist` | Surcharge les métadonnées (par défaut : tags du fichier, sinon nom/arborescence). |
-| `--realign` | Force le niveau 2 (alignement mot-à-mot sur la voix), même si un LRC synchronisé existe en ligne. |
+| `--realign` | Ignore les timecodes en ligne et ré-aligne tout le texte sur la voix (garde-fou anti-dérive). |
+| `--line-only` | Garde un LRC ligne-à-ligne tel quel (pas de mot-à-mot). |
 | `--force` | Tout recalcule, **y compris** Demucs (sinon les stems déjà séparés sont réutilisés). |
 
 > **Métadonnées automatiques** : titre/artiste sont lus dans les tags du FLAC via
@@ -129,24 +126,27 @@ Dans le lecteur, bouton **✎ Éditer** :
 > l'arborescence (`.../Artiste/Album/piste.flac`).
 >
 > **Cache** : les stems (`instrumental.mp3`, `vocals.mp3`) sont réutilisés d'un run
-> à l'autre — pratique pour itérer sur la synchro sans relancer Demucs.
+> à l'autre — supprimer `karaoke.json` puis relancer `build` re-synchronise sans Demucs.
+> Chaque étape est chronométrée dans `karaoke.json` (`timings`).
 
 ## Comment ça marche (rappel)
 
-1. **Séparation** — Demucs (`--two-stems=vocals`) : `instrumental.mp3` (à chanter)
-   + `vocals.mp3` (sert à la synchro).
-2. **Paroles** — `syncedlyrics` cherche un LRC déjà synchronisé (LRCLIB,
-   Musixmatch…). Si trouvé, la synchro est offerte.
-3. **Synchro** — sinon, WhisperX transcrit la voix isolée et aligne chaque mot
-   (< 100 ms).
-4. **Affichage** — l'app web lit `karaoke.json` et surligne les mots en rythme ;
+1. **Séparation** — Demucs : seul le sous-modèle « voix » de `htdemucs_ft` tourne ;
+   `instrumental.mp3` = mix − voix (complémentaire exact).
+2. **Paroles** — LRCLIB (artiste + titre + durée), puis recherche floue
+   `syncedlyrics`, lancées **en parallèle** de la séparation. Un résultat flou est
+   vérifié contre la voix avant d'être utilisé.
+3. **Synchro** — LRC ligne-à-ligne : mot-à-mot aligné dans chaque ligne (MMS_FA) ;
+   texte seul : alignement forcé ; rien : transcription WhisperX.
+4. **Affichage** — l'app web lit `karaoke.json` et remplit les mots en rythme ;
    un curseur « guide » réintroduit un peu de voix pour s'aider.
 
 ## Dépannage
 
-- **`ffmpeg introuvable`** → `export PATH="$PWD/scripts/bin:$PATH"` ou installe ffmpeg.
-- **Installation torch/whisperx capricieuse** → vérifie ta version de CUDA et
-  adapte l'`--extra-index-url` dans `requirements-gpu.txt`
+- **`ffmpeg introuvable`** → installe ffmpeg ou relance `scripts/bootstrap.sh`.
+- **`libcublas.so.12 is not found`** (GPU) → géré par `utils.preload_cuda_libs()` ;
+  vérifie que la variante GPU est installée (`uv sync --extra gpu`).
+- **CUDA plus ancienne que 12.8** → adapte l'index `pytorch-cu128` dans `pyproject.toml`
   (voir <https://pytorch.org/get-started/locally/>).
 - **Paroles fausses/décalées** → relance avec `--language`, `--realign`, ou
-  corrige à la main dans l'éditeur du lecteur (`python -m karaoke serve`).
+  corrige à la main dans l'éditeur du lecteur (`uv run karaoke serve`).
