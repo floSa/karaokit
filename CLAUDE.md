@@ -54,8 +54,10 @@ npm run build      # requis avant `karaoke serve`
 
 ## Architecture (big picture)
 
-Doc détaillée : [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Points qui
-nécessitent de lire plusieurs fichiers :
+Doc détaillée : [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (comment),
+[`docs/CADRAGE.md`](docs/CADRAGE.md) (pourquoi), [`docs/ETUDE.md`](docs/ETUDE.md)
+(étude initiale). Règle de rédaction : aucun émoji, ni dans la doc ni dans
+l'interface. Points qui nécessitent de lire plusieurs fichiers :
 
 **Dégradation en 3 niveaux pour la synchro** (cœur du projet, dans `pipeline.build`) :
 1. **LRC synchronisé** trouvé en ligne (`lyrics.py` + `lrc.py`) → timecodes de

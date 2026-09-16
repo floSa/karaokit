@@ -1,7 +1,12 @@
-# Karaoké maison — étude technique & feuille de route
+# Étude préalable — Karaokit
 
-> Objectif : à partir d'un fichier musical (FLAC surtout), séparer voix/musique,
-> récupérer le texte des paroles, les synchroniser, et afficher un karaoké.
+Étude réalisée **avant le développement** : état de l'art et outils existants pour
+fabriquer un karaoké à partir d'un fichier musical. Elle reflète la réflexion
+initiale ; les choix finalement retenus sont dans [CADRAGE.md](CADRAGE.md) et
+[ARCHITECTURE.md](ARCHITECTURE.md).
+
+**Objectif** : à partir d'un fichier musical (FLAC surtout), séparer voix et musique,
+récupérer le texte des paroles, les synchroniser et afficher un karaoké.
 
 ---
 
@@ -34,9 +39,9 @@ Avant de partir de zéro, plusieurs projets open-source font déjà tout ou part
 
 | Projet | Ce qu'il fait | Techno | Licence | Pertinence pour toi |
 |---|---|---|---|---|
-| **[OpenKara](https://github.com/thedavidweng/OpenKara)** | App **desktop** karaoké clé en main : sépare les stems **on-device** (Demucs v4 en ONNX), récupère les paroles synchronisées depuis LRCLIB, mixeur 4 pistes, plein écran | Tauri 2 (Rust) + React/TS, SQLite | Apache-2.0 | ⭐ **Le plus proche de ton besoin** — à tester en premier, éventuellement à forker |
-| **[karaoke-gen](https://github.com/nomadkaraoke/karaoke-gen)** (Nomad Karaoke) | Pipeline **complet et automatisé** : sépare (MDX + Demucs), transcrit (Whisper / AudioShake), matche contre Genius/Musixmatch, corrige avec LLM, **génère des vidéos karaoké 4K / CDG** | Python 3.10-3.13, PyTorch, FFmpeg, FastAPI | MIT | ⭐ Référence pour la **génération de vidéos** et l'auto-correction des paroles |
-| **[python-lyrics-transcriber](https://github.com/nomadkaraoke/python-lyrics-transcriber)** | Brique « paroles synchronisées » de Nomad : produit du **LRC + ASS mot-à-mot**, avec Whisper + sources en ligne + LLM pour corriger | Python | MIT | ⭐ Bibliothèque réutilisable pour l'étape 2+3 |
+| **[OpenKara](https://github.com/thedavidweng/OpenKara)** | App **desktop** karaoké clé en main : sépare les stems **on-device** (Demucs v4 en ONNX), récupère les paroles synchronisées depuis LRCLIB, mixeur 4 pistes, plein écran | Tauri 2 (Rust) + React/TS, SQLite | Apache-2.0 | **Le plus proche du besoin** — à tester en premier, éventuellement à forker |
+| **[karaoke-gen](https://github.com/nomadkaraoke/karaoke-gen)** (Nomad Karaoke) | Pipeline **complet et automatisé** : sépare (MDX + Demucs), transcrit (Whisper / AudioShake), matche contre Genius/Musixmatch, corrige avec LLM, **génère des vidéos karaoké 4K / CDG** | Python 3.10-3.13, PyTorch, FFmpeg, FastAPI | MIT | Référence pour la **génération de vidéos** et l'auto-correction des paroles |
+| **[python-lyrics-transcriber](https://github.com/nomadkaraoke/python-lyrics-transcriber)** | Brique « paroles synchronisées » de Nomad : produit du **LRC + ASS mot-à-mot**, avec Whisper + sources en ligne + LLM pour corriger | Python | MIT | Bibliothèque réutilisable pour les étapes 2 et 3 |
 | **[karaok-AI](https://github.com/EtienneAb3d/karaok-AI)** | Player/éditeur karaoké avec extraction voix + speech-to-text, découpage en clips | Python | — | Éditeur pour corriger la synchro à la main |
 | **[UltraStar Deluxe](https://github.com/UltraStar-Deluxe/USDX)** / **[Performous](https://performous.org)** | **Jeux** de karaoké matures (façon SingStar, avec notation du pitch au micro) | Pascal/SDL2, C++ | GPL | Si tu veux le côté « jeu » + notation. Format `.txt` UltraStar bien documenté |
 
@@ -54,16 +59,16 @@ Les 3 besoins exprimés :
 
 | Solution | 1. Sélection biblio | 2. Musique sans paroles | 3. Synchro paroles | Verdict |
 |---|:---:|:---:|:---:|---|
-| **🏠 Notre MVP maison** | ✅ liste web cliquable | ✅ Demucs (voix/instru) | ✅ LRC en ligne, sinon WhisperX | **Les 3 ✅** |
-| **OpenKara** (desktop) | ✅ bibliothèque locale | ✅ Demucs on-device | ⚠️ ✅ **seulement si** LRCLIB a le LRC (ne synchronise pas depuis l'audio) | 2,5 / 3 |
-| **karaoke-gen** (Nomad) | ⚠️ générateur, pas un navigateur de biblio | ✅ MDX + Demucs | ✅ Whisper / AudioShake | 2,5 / 3 |
-| **karaok-AI** | ✅ player/éditeur | ✅ extraction voix | ✅ speech-to-text + éditeur | **Les 3 ✅** |
-| **python-lyrics-transcriber** | ❌ (c'est une lib) | ❌ ne sépare pas | ✅ Whisper + alignement | 1 / 3 |
-| **UltraStar Deluxe / Performous** | ✅ sélection de morceaux | ❌ n'extrait pas la voix | ❌ lit des fichiers déjà synchronisés (ne les crée pas) | 1 / 3 |
-| **UVR / Demucs (seuls)** | ❌ | ✅ excellente séparation | ❌ | 1 / 3 |
-| **syncedlyrics / LRCLIB (seuls)** | ❌ | ❌ | ✅ fournit du LRC synchronisé | 1 / 3 |
+| **Karaokit (MVP maison)** | Oui : liste web cliquable | Oui : Demucs (voix/instru) | Oui : LRC en ligne, sinon WhisperX | **3 / 3** |
+| **OpenKara** (desktop) | Oui : bibliothèque locale | Oui : Demucs on-device | Partiel : **seulement si** LRCLIB a le LRC (ne synchronise pas depuis l'audio) | 2,5 / 3 |
+| **karaoke-gen** (Nomad) | Partiel : générateur, pas un navigateur de bibliothèque | Oui : MDX + Demucs | Oui : Whisper / AudioShake | 2,5 / 3 |
+| **karaok-AI** | Oui : player/éditeur | Oui : extraction voix | Oui : speech-to-text + éditeur | **3 / 3** |
+| **python-lyrics-transcriber** | Non (c'est une bibliothèque) | Non : ne sépare pas | Oui : Whisper + alignement | 1 / 3 |
+| **UltraStar Deluxe / Performous** | Oui : sélection de morceaux | Non : n'extrait pas la voix | Non : lit des fichiers déjà synchronisés (ne les crée pas) | 1 / 3 |
+| **UVR / Demucs (seuls)** | Non | Oui : excellente séparation | Non | 1 / 3 |
+| **syncedlyrics / LRCLIB (seuls)** | Non | Non | Oui : fournit du LRC synchronisé | 1 / 3 |
 
-*Légende : ✅ couvert · ⚠️ partiel/conditionnel · ❌ non couvert.*
+*Légende : Oui = couvert, Partiel = partiel ou conditionnel, Non = non couvert.*
 
 **À retenir :** aucun outil pris **seul** ne coche les 3 cases — chacun ne fait
 qu'une brique, d'où l'intérêt d'assembler un pipeline. Deux options couvrent les
@@ -71,15 +76,15 @@ qu'une brique, d'où l'intérêt d'assembler un pipeline. Deux options couvrent 
 
 #### Le cas OpenKara : synchro « téléchargée » vs synchro « calculée »
 
-OpenKara est très proche du besoin mais sa synchro est en ⚠️ pour une raison
+OpenKara est très proche du besoin mais sa synchro n'est que partielle pour une raison
 importante. Il y a **deux façons** d'obtenir des paroles synchronisées :
 
 - **A. Télécharger une synchro déjà faite** — OpenKara va chercher sur **LRCLIB**
   un fichier `.lrc` que **quelqu'un a déjà créé et déposé** en ligne. Il ne fait
   que le *récupérer*. Donc :
-  - ✅ le morceau est dans LRCLIB avec timecodes → karaoké parfait, instantané ;
-  - ⚠️ paroles présentes **sans** timecodes → le texte s'affiche mais ne défile pas ;
-  - ❌ morceau absent de LRCLIB (titre obscur, live, remix, démo perso) → rien.
+  - morceau dans LRCLIB avec timecodes : karaoké parfait, instantané ;
+  - paroles présentes **sans** timecodes : le texte s'affiche mais ne défile pas ;
+  - morceau absent de LRCLIB (titre obscur, live, remix, démo perso) : rien.
   OpenKara **n'écoute jamais l'audio** pour calculer le timing : il dépend à 100 %
   de ce que la communauté a déposé en ligne.
 - **B. Calculer la synchro depuis l'audio** (*forced alignment*) — le logiciel
@@ -140,7 +145,7 @@ Récupérer des paroles déjà écrites (et parfois déjà synchronisées !).
 - **[LRCLIB](https://lrclib.net)** — base ouverte, gratuite, sans clé API, de
   paroles synchronisées `.lrc`. C'est ce qu'utilise OpenKara.
 
-👉 **Le raccourci en or** : si LRCLIB/Musixmatch a déjà le LRC synchronisé du
+**Le raccourci en or** : si LRCLIB/Musixmatch a déjà le LRC synchronisé du
 morceau, **les étapes 2 ET 3 sont réglées d'un coup** — tu n'as plus qu'à
 afficher. À tenter **systématiquement en premier**.
 

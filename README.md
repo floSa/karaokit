@@ -1,169 +1,263 @@
-# 🎤 Karaokit
+# Karaokit
 
-**Karaoké maison : sépare, synchronise, chante.**
+**Karaoké maison : transforme ta propre musique en karaoké mot à mot, avec playlist et lecture enchaînée, 100 % en local.**
 
-Transforme un fichier audio (FLAC, MP3, WAV…) en karaoké : séparation
-voix/instrumental, récupération + synchronisation des paroles, et lecteur web
-avec surlignage mot-à-mot.
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![uv](https://img.shields.io/badge/uv-package_manager-DE5FE9?logo=uv&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.8_CUDA_12.8-EE4C2C?logo=pytorch&logoColor=white)
+![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite&logoColor=white)
 
-> Le module Python s'importe sous le nom `karaoke` (`uv run karaoke …`).
->
-> 🏗 Architecture interne (modules, flux de données) :
-> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+À partir d'un fichier audio (FLAC, MP3, WAV, M4A, OGG, Opus, AAC, WMA), Karaokit sépare
+la voix de la musique, récupère les paroles, les synchronise mot à mot et les affiche
+dans un lecteur web.
 
-> 📄 Contexte, état de l'art et choix techniques : voir
-> [`karaoke-maison-etude.md`](karaoke-maison-etude.md).
+## Sommaire
 
-## État d'avancement (validé sur du vrai audio)
-
-| Fonction | État | Détail |
-|---|:---:|---|
-| Séparation voix/instru (Demucs) | ✅ | ~7 s/titre sur GPU (sous-modèle voix de `htdemucs_ft`) ; stems mis en cache |
-| Paroles niveau 1 (LRC synchronisé en ligne) | ✅ | LRCLIB direct avec la durée du titre, puis `syncedlyrics` ; **mot-à-mot posé dans chaque ligne** |
-| Vérification des paroles trouvées | ✅ | une recherche floue qui ramène un autre morceau est rejetée (Whisper rapide) |
-| Paroles niveau 2 (alignement forcé du texte) | ✅ | torchaudio **MMS_FA** ; validé : **médian 80 ms**, 19/19 lignes < 1 s |
-| Paroles niveau 3 (transcription à l'aveugle) | ✅ | WhisperX si aucune parole en ligne |
-| Métadonnées auto (tags FLAC) | ✅ | ffprobe ; plus besoin de `--artist/--title` |
-| Traitement d'un album (dossier) | ✅ | `build <dossier>` |
-| Surlignage mot-à-mot (`--realign`) | ✅ | timecodes par mot dans `karaoke.json` |
-| Lecteur web (React) | ✅ | surlignage progressif, pré-roll, voix-guide, raccourcis, lien direct `#/<slug>` |
-| Export vidéo MP4 (ASS `\k`) | ✅ | `export <slug>` / `export all` — 1280×720 H.264+AAC, vérifié à l'image |
-| Garde-fou anti-dérive (`--realign`) | ✅ | rejette un ré-alignement qui dérive (> 1,5 s) |
-| Lecteur : seek, streaming, fluidité | ✅ | HTTP Range, 1er son en ~0,2 s, remplissage du mot en CSS |
-| Découpage des lignes trop longues | ✅ | niveau 3 : une ligne de 200 mots → 44 lignes |
-| Playlist + recherche dans l'app web | ✅ | glisser-déposer, préparation automatique, lecture enchaînée |
-| Éditeur de synchro (décalage + « caler ici ») | ✅ | serveur `serve` (stdlib) ; sauvegarde JSON/LRC vérifiée |
-
-Reste à explorer : correction LLM des cas tordus (refrains/ad-libs), détection auto
-de la langue par morceau, éditeur mot-à-mot fin.
+- [Architecture](#architecture)
+- [Documentation](#documentation)
+- [Démarrage](#démarrage)
+- [Configuration](#configuration)
+- [API](#api)
+- [Tests](#tests)
+- [Structure du projet](#structure-du-projet)
+- [Licences et composants](#licences-et-composants)
+- [Utilisation de l'application](#utilisation-de-lapplication)
+- [Ligne de commande](#ligne-de-commande)
+- [Dépannage](#dépannage)
 
 ## Architecture
 
-```
-Fichier audio  ─▶  [1] Séparation (Demucs)  ─▶  instrumental + voix isolée
-                   [2] Paroles en ligne (syncedlyrics / LRCLIB)
-                   [3] Synchro (WhisperX, si pas déjà synchronisé)
-                   [4] Sorties  ─▶  web/public/library/<morceau>/
-                                       ├─ instrumental.mp3
-                                       ├─ vocals.mp3
-                                       ├─ lyrics.lrc
-                                       └─ karaoke.json   (mots + timestamps)
-                                             │
-                        App web React  ◀─────┘  (lecteur + surlignage)
-```
-
-- **`karaoke/`** — pipeline Python (CLI `uv run karaoke`).
-- **`web/`** — app web Vite + React (lecteur karaoké).
-- **`scripts/bootstrap.sh`** — installe tout **sans sudo** (ffmpeg, uv, Node).
-- **`scripts/bench_player.py`** — test de bout en bout du lecteur dans Chromium.
-
-Le code est **device-agnostique** : il détecte automatiquement le GPU (CUDA) et
-choisit des modèles adaptés. Dépendances dans `pyproject.toml` (uv), variantes
-`--extra gpu` et `--extra cpu`.
-
-## Installation
-
-```bash
-scripts/bootstrap.sh gpu      # carte NVIDIA — ou 'cpu'
-```
-
-> Le premier lancement télécharge les modèles (Demucs, MMS_FA, Whisper) : compte
-> quelques centaines de Mo et un peu de patience. ffmpeg est trouvé automatiquement
-> (système ou `scripts/bin/`).
-
-## Utilisation
-
-```bash
-# 1) Traiter un morceau — l'artiste/titre est lu dans les tags du fichier
-uv run karaoke build "morceau.flac"
-
-# 2) Traiter un ALBUM entier (dossier) d'un coup — modèles chargés une seule fois
-uv run karaoke build "/mnt/c/Users/.../Album"
-
-# 3) Variantes de synchro
-uv run karaoke build morceau.flac --line-only     # garder le LRC en ligne ligne-à-ligne
-uv run karaoke build morceau.flac --realign       # ignorer les timecodes en ligne, tout ré-aligner
-
-# 4) Lister la bibliothèque
-uv run karaoke list
-
-# 5) Exporter une vidéo karaoké MP4 (sous-titres incrustés, effet mot-à-mot)
-uv run karaoke export hippie-hourrah-revenons-au-debut   # slug (voir 'list')
-uv run karaoke export all
-
-# 6a) Lecteur web + ÉDITEUR de synchro (après `cd web && npm run build`)
-uv run karaoke serve               # http://localhost:8765
-
-# 6b) Lecteur web en développement (rechargement à chaud)
-cd web && npm run dev              # http://localhost:5173
-```
-
-### L'app : playlist, recherche, lecture enchaînée
-
-`uv run karaoke serve` puis http://localhost:8765 :
-- **À gauche, la playlist** : glisser-déposer pour réordonner, ✕ pour retirer, clic
-  sur un titre prêt pour le chanter. Les titres s'enchaînent en fin de chanson
-  (case « Enchaîner les titres »). Elle est enregistrée côté serveur.
-- **Au centre, la recherche** : un titre ou un artiste, dans la bibliothèque (prêts
-  à chanter) **et** dans la musique de l'ordinateur. « + » ajoute un titre ; cocher
-  plusieurs lignes puis « Ajouter à la playlist » en ajoute plusieurs.
-- **📁 Parcourir l'ordinateur** : explorateur de dossiers, « + album » pour un dossier.
-- Un morceau pris sur l'ordinateur est **préparé automatiquement**, un par un ;
-  son avancement s'affiche dans la playlist (séparation, paroles, synchro…).
-
-Dossiers de musique par défaut : `~/Music` et `C:\Users\<toi>\Music` ; sinon
-`karaoke serve --music "/chemin"` (option répétable).
-
-**Raccourcis clavier du lecteur** : `Espace` = lecture/pause · `←` / `→` = ±5 s ·
-`Début` = revenir au début. Curseur « guide » pour réintroduire un peu de voix.
-
-### Éditeur de synchro
-
-Dans le lecteur, bouton **✎ Éditer** :
-- **Décalage global** `−0,1 s` / `+0,1 s` : corrige un retard/avance systématique.
-- **Caler la ligne ici** : sélectionne une ligne (clic), lance la lecture, et cale
-  son départ sur l'instant courant.
-- **💾 Enregistrer** : réécrit `karaoke.json` + `lyrics.lrc` via le serveur local
-  (`uv run karaoke serve`). En mode `npm run dev`, l'éditeur contacte
-  automatiquement le serveur sur le port 8765 (lance-le en parallèle).
-
-## Options utiles
-
-| Option | Effet |
+| Composant | Rôle |
 |---|---|
-| `--device auto\|cpu\|cuda` | Force le matériel (défaut : auto-détection). |
-| `--language fr` | Force la langue (améliore transcription et alignement). |
-| `--title` / `--artist` | Surcharge les métadonnées (par défaut : tags du fichier, sinon nom/arborescence). |
-| `--realign` | Ignore les timecodes en ligne et ré-aligne tout le texte sur la voix (garde-fou anti-dérive). |
-| `--line-only` | Garde un LRC ligne-à-ligne tel quel (pas de mot-à-mot). |
-| `--force` | Tout recalcule, **y compris** Demucs (sinon les stems déjà séparés sont réutilisés). |
+| Pipeline Python (`karaoke/`) | Séparation voix / instrumental, recherche et vérification des paroles, synchronisation mot à mot |
+| Serveur (`karaoke serve`) | Sert l'application et les fichiers audio, gère la playlist, la file de traitement et la recherche |
+| Application web (`web/`) | Playlist, recherche, explorateur de dossiers, lecteur karaoké, éditeur de synchronisation |
+| Bibliothèque (`web/public/library/`) | Un dossier par morceau : `instrumental.mp3`, `vocals.mp3`, `lyrics.lrc`, `karaoke.json` |
 
-> **Métadonnées automatiques** : titre/artiste sont lus dans les tags du FLAC via
-> ffprobe ; à défaut, déduits du nom de fichier (`01 - Titre.flac`) et de
-> l'arborescence (`.../Artiste/Album/piste.flac`).
->
-> **Cache** : les stems (`instrumental.mp3`, `vocals.mp3`) sont réutilisés d'un run
-> à l'autre — supprimer `karaoke.json` puis relancer `build` re-synchronise sans Demucs.
-> Chaque étape est chronométrée dans `karaoke.json` (`timings`).
+```mermaid
+flowchart LR
+  subgraph Ordinateur
+    music[Musique locale]
+  end
+  subgraph Pipeline
+    sep[Séparation Demucs]
+    lyr[Paroles LRCLIB / syncedlyrics]
+    sync[Synchronisation MMS_FA ou WhisperX]
+  end
+  subgraph Application
+    lib[(Bibliothèque)]
+    srv[Serveur :8765]
+    web[Lecteur web]
+  end
+  music --> sep
+  music --> lyr
+  sep --> sync
+  lyr --> sync
+  sep --> lib
+  sync --> lib
+  lib --> srv
+  srv --> web
+```
 
-## Comment ça marche (rappel)
+La synchronisation suit trois niveaux, selon ce qui est trouvé en ligne :
 
-1. **Séparation** — Demucs : seul le sous-modèle « voix » de `htdemucs_ft` tourne ;
-   `instrumental.mp3` = mix − voix (complémentaire exact).
-2. **Paroles** — LRCLIB (artiste + titre + durée), puis recherche floue
-   `syncedlyrics`, lancées **en parallèle** de la séparation. Un résultat flou est
-   vérifié contre la voix avant d'être utilisé.
-3. **Synchro** — LRC ligne-à-ligne : mot-à-mot aligné dans chaque ligne (MMS_FA) ;
-   texte seul : alignement forcé ; rien : transcription WhisperX.
-4. **Affichage** — l'app web lit `karaoke.json` et remplit les mots en rythme ;
-   un curseur « guide » réintroduit un peu de voix pour s'aider.
+| Niveau | Paroles trouvées | Méthode |
+|---|---|---|
+| 1 | LRC synchronisé ligne par ligne | Débuts de ligne conservés, mot à mot aligné sur la voix dans chaque ligne |
+| 2 | Texte sans horodatage | Alignement forcé du texte sur la voix |
+| 3 | Rien de fiable | Transcription automatique de la voix |
+
+Les paroles issues d'une recherche approximative sont vérifiées contre la voix et
+rejetées si elles appartiennent à un autre morceau.
+
+## Documentation
+
+| Document | Contenu |
+|---|---|
+| [docs/CADRAGE.md](docs/CADRAGE.md) | Besoin, périmètre, contraintes, hypothèses, décisions, feuille de route |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules, flux de traitement, formats, API, décisions justifiées, sécurité, performances, limites |
+| [docs/ETUDE.md](docs/ETUDE.md) | Étude préalable : état de l'art et comparatif des outils existants |
+
+## Démarrage
+
+**Prérequis** : Linux ou WSL2, `curl`, et de préférence une carte NVIDIA (le
+fonctionnement sur CPU est possible mais plus lent). Aucun droit administrateur n'est
+nécessaire.
+
+```bash
+scripts/bootstrap.sh gpu      # ou : scripts/bootstrap.sh cpu
+uv run karaoke serve
+```
+
+Le script [bootstrap.sh](scripts/bootstrap.sh) installe ffmpeg s'il est absent (build
+statique dans `scripts/bin/`), uv, Python 3.12 et les dépendances, Node.js via nvm,
+puis construit l'application web. Le premier traitement télécharge les modèles
+(Demucs, MMS_FA, Whisper).
+
+| Accès | URL | Note |
+|---|---|---|
+| Application | http://localhost:8765 | Playlist, recherche, lecteur, éditeur |
+| Développement web | http://localhost:5173 | `cd web && npm run dev`, avec `karaoke serve` lancé en parallèle |
+
+## Configuration
+
+Le projet n'utilise pas de variables d'environnement : tout passe par les options de
+la ligne de commande.
+
+**`karaoke serve`**
+
+| Option | Défaut | Effet |
+|---|---|---|
+| `--port` | `8765` | Port d'écoute (sur toutes les interfaces) |
+| `--library` | `web/public/library` | Dossier de la bibliothèque |
+| `--music` | `~/Music`, `~/Musique`, `C:\Users\<nom>\Music` | Dossier de musique consultable depuis l'application (option répétable) |
+| `--device` | `auto` | `auto`, `cpu` ou `cuda` pour les traitements lancés depuis l'application |
+
+**`karaoke build`**
+
+| Option | Défaut | Effet |
+|---|---|---|
+| `--device` | `auto` | Matériel utilisé |
+| `--language` | détection | Code de langue (`fr`, `en`…) |
+| `--title`, `--artist` | tags du fichier | Remplace les métadonnées (fichier seul) |
+| `--out` | `web/public/library` | Dossier de sortie |
+| `--line-only` | désactivé | Garde un LRC ligne par ligne sans mot à mot |
+| `--realign` | désactivé | Ignore les horodatages en ligne et ré-aligne tout le texte |
+| `--force` | désactivé | Recalcule tout, y compris la séparation |
+
+**`karaoke export`** : `--width` (`1280`) et `--height` (`720`).
+
+Les profils de modèles (GPU / CPU) et les paramètres internes sont décrits dans
+[ARCHITECTURE.md](docs/ARCHITECTURE.md#3-stack-technique).
+
+## API
+
+Exposée par `karaoke serve` ; détail des formats dans
+[ARCHITECTURE.md](docs/ARCHITECTURE.md#6-serveur-et-api).
+
+| Méthode | Route | Rôle |
+|---|---|---|
+| `GET` | `/library/<chemin>` | Fichiers de la bibliothèque (requêtes `Range` acceptées) |
+| `GET` / `POST` / `PUT` / `DELETE` | `/api/playlist` | Lire, ajouter, réordonner, vider la playlist |
+| `DELETE` | `/api/playlist/<id>` | Retirer un titre |
+| `GET` | `/api/search?q=` | Rechercher dans la bibliothèque et la musique de l'ordinateur |
+| `GET` | `/api/music?path=` | Parcourir un dossier de musique |
+| `GET` / `POST` | `/api/jobs` | Suivre / alimenter la file de traitement |
+| `DELETE` | `/api/jobs/<id>` | Retirer un traitement en attente |
+| `POST` | `/api/jobs/clear` | Effacer les traitements terminés |
+| `POST` | `/api/save/<slug>` | Enregistrer une synchronisation corrigée |
+
+## Tests
+
+```bash
+uv run --group dev pytest tests/
+```
+
+**22 tests unitaires** sur la logique pure (formats, alignement, recherche, vérification
+des paroles, service des fichiers, playlist). Test de bout en bout du lecteur dans
+Chromium (délai avant le premier son, seek, fluidité, précision du surlignage) :
+
+```bash
+uv run --with playwright playwright install chromium
+uv run --with playwright python scripts/bench_player.py web/dist web/public/library local
+```
+
+Options du test de bout en bout : `--throttle 10` (réseau limité à 10 Mbit/s),
+`--cpu 4` (processeur bridé 4 fois).
+
+## Structure du projet
+
+```text
+Karaokit/
+├── karaoke/                  # pipeline Python et serveur
+│   ├── cli.py                # commandes build, list, export, serve
+│   ├── pipeline.py           # orchestration d'un morceau ou d'un album
+│   ├── separate.py           # séparation voix / instrumental (Demucs)
+│   ├── lyrics.py             # recherche des paroles (LRCLIB, syncedlyrics)
+│   ├── verify.py             # vérification des paroles contre la voix
+│   ├── align.py              # alignement forcé (MMS_FA)
+│   ├── transcribe.py         # transcription (WhisperX), types Line / Word
+│   ├── lrc.py                # format LRC
+│   ├── metadata.py           # titre et artiste
+│   ├── export_video.py       # export MP4 avec sous-titres ASS
+│   ├── server.py             # serveur HTTP et API
+│   ├── jobs.py               # file de traitement
+│   ├── playlist.py           # playlist et index de recherche
+│   ├── config.py             # profils CPU / GPU
+│   └── utils.py              # ffmpeg, écritures atomiques, bibliothèques CUDA
+├── web/                      # application React (Vite)
+│   ├── src/                  # App, Playlist, Home, Browser, KaraokePlayer…
+│   └── public/library/       # bibliothèque générée (pistes non versionnées)
+├── scripts/
+│   ├── bootstrap.sh          # installation sans droits administrateur
+│   ├── bench_player.py       # test de bout en bout du lecteur
+│   └── split_existing_lines.py
+├── tests/test_core.py        # tests unitaires
+├── docs/                     # cadrage, architecture, étude
+├── pyproject.toml            # dépendances (variantes gpu / cpu)
+└── uv.lock
+```
+
+## Licences et composants
+
+| Composant | Rôle | Licence |
+|---|---|---|
+| Demucs 4.1.0 (modèle `htdemucs_ft`) | Séparation voix / instrumental | MIT |
+| PyTorch 2.8.0 | Calcul | BSD-3-Clause |
+| torchaudio 2.8.0 (`MMS_FA`) | Alignement forcé | BSD-2-Clause pour le code ; licence des poids MMS à confirmer |
+| WhisperX 3.8.6 | Transcription et alignement | BSD-2-Clause |
+| faster-whisper 1.2.1 | Moteur Whisper | MIT |
+| syncedlyrics 1.0.1 | Recherche de paroles multi-sources | MIT |
+| LRCLIB | Base de paroles synchronisées (service en ligne) | Service gratuit ; paroles soumises au droit d'auteur |
+| ffmpeg | Décodage, encodage, vidéo | LGPL-2.1+ ou GPL-2.0+ selon la compilation |
+| React 18.3.1 | Interface | MIT |
+| Vite 5.4 | Build de l'interface | MIT |
+| **Karaokit** | Code du projet | MIT — Copyright (c) 2026 floSa (fichier `LICENSE` à ajouter) |
+
+Les instrumentaux, paroles et vidéos générés sont réservés à un **usage personnel** et
+ne sont pas versionnés.
+
+## Utilisation de l'application
+
+Après `uv run karaoke serve`, ouvrir http://localhost:8765.
+
+**Playlist (colonne de gauche)**
+- Glisser-déposer pour réordonner, croix pour retirer un titre, clic sur un titre prêt pour le chanter.
+- Un titre pris sur l'ordinateur est préparé automatiquement, un à la fois ; l'étape en cours s'affiche.
+- « Enchaîner les titres » : en fin de chanson, le prochain titre prêt démarre (les titres encore en préparation sont sautés).
+- La playlist est enregistrée par le serveur et survit à un rechargement ou à un redémarrage.
+
+**Recherche (centre)**
+- Recherche par titre ou artiste, sans tenir compte des accents, dans la bibliothèque (« Prêts à chanter ») et dans la musique de l'ordinateur.
+- « + » ajoute un titre ; cocher plusieurs lignes puis « Ajouter à la playlist » en ajoute plusieurs, avec une langue optionnelle.
+- « Parcourir l'ordinateur » : explorateur de dossiers, « + Album » ajoute un dossier entier.
+
+**Lecteur**
+- Raccourcis : `Espace` lecture / pause, flèches gauche et droite ±5 s, `Début` retour au début.
+- « Voix guide » : réintroduit la voix d'origine à volume réglable.
+- « Éditer la synchro » : décalage global de ±0,1 s, « Caler la ligne ici » sur l'instant courant, « Enregistrer ».
+
+## Ligne de commande
+
+```bash
+uv run karaoke build "morceau.flac"                 # un morceau
+uv run karaoke build "/mnt/c/Users/<nom>/Music/Album"   # un album entier
+uv run karaoke list                                 # contenu de la bibliothèque
+uv run karaoke export <slug>                        # vidéo MP4 ; 'all' pour tous
+```
+
+Les pistes séparées sont réutilisées d'un traitement à l'autre : supprimer
+`karaoke.json` puis relancer `build` refait uniquement la synchronisation. La durée de
+chaque étape est enregistrée dans `karaoke.json` (champ `timings`).
 
 ## Dépannage
 
-- **`ffmpeg introuvable`** → installe ffmpeg ou relance `scripts/bootstrap.sh`.
-- **`libcublas.so.12 is not found`** (GPU) → géré par `utils.preload_cuda_libs()` ;
-  vérifie que la variante GPU est installée (`uv sync --extra gpu`).
-- **CUDA plus ancienne que 12.8** → adapte l'index `pytorch-cu128` dans `pyproject.toml`
-  (voir <https://pytorch.org/get-started/locally/>).
-- **Paroles fausses/décalées** → relance avec `--language`, `--realign`, ou
-  corrige à la main dans l'éditeur du lecteur (`uv run karaoke serve`).
+| Problème | Cause | Solution |
+|---|---|---|
+| `ffmpeg introuvable` | ffmpeg absent du système | Relancer `scripts/bootstrap.sh` (installe un build statique) |
+| `Library libcublas.so.12 is not found` | ctranslate2 ne trouve pas les bibliothèques CUDA des paquets pip | Géré par `utils.preload_cuda_libs()` ; vérifier la variante GPU : `uv sync --extra gpu` |
+| PyTorch ne voit pas le GPU | Pilote trop ancien pour CUDA 12.8 | Adapter l'index `pytorch-cu128` dans [pyproject.toml](pyproject.toml) |
+| Paroles d'un autre morceau ou absentes | Tags incorrects, ou version différente de la fiche en ligne | Corriger les tags, ou passer `--title` / `--artist` / `--language` |
+| Mots décalés | LRC communautaire imprécis | Éditeur du lecteur, ou `build --realign` |
+| Le seek repart au début | Application servie par un autre serveur que `karaoke serve` | Utiliser `karaoke serve` (gère les requêtes `Range`) |
