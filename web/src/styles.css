@@ -127,13 +127,13 @@ body {
   text-align: center; scroll-behavior: smooth;
 }
 .line {
-  margin: 1.1rem 0; font-size: 1.6rem; font-weight: 600;
+  margin: 1.2rem 0; font-size: clamp(1.5rem, 2.8vw, 2.5rem); font-weight: 600;
   color: var(--dim); transition: color .3s, transform .3s, opacity .3s;
   opacity: .5;
   contain: layout style; /* un changement de ligne ne relaie pas toute la page */
 }
 .line.past { opacity: .35; }
-.line.active { color: var(--text); font-size: 2.3rem; opacity: 1; transform: scale(1.02); }
+.line.active { color: var(--text); font-size: clamp(2rem, 4vw, 3.5rem); opacity: 1; transform: scale(1.02); }
 .line.future { opacity: .5; }
 
 .word { transition: color .15s; white-space: pre-wrap; }
@@ -191,10 +191,10 @@ body {
 .tc { color: var(--dim); font-variant-numeric: tabular-nums; min-width: 3rem; }
 .scrub { flex: 1; accent-color: var(--accent); }
 .guide {
-  display: flex; align-items: center; gap: .5rem;
-  color: var(--dim); font-size: .85rem;
+  display: flex; align-items: center; gap: .6rem;
+  color: var(--text); font-size: 1rem;
 }
-.guide input { accent-color: var(--accent); width: 90px; }
+.guide input { accent-color: var(--accent); width: 200px; height: 22px; cursor: pointer; }
 
 /* --- Mobile / TV étroite --- */
 @media (max-width: 800px) {
@@ -204,8 +204,6 @@ body {
 @media (max-width: 640px) {
   .player-head { flex-wrap: wrap; gap: .5rem; padding: .7rem 1rem; }
   .src { display: none; }
-  .line { font-size: 1.25rem; }
-  .line.active { font-size: 1.6rem; }
   .controls { flex-wrap: wrap; gap: .6rem; padding: .7rem 1rem; }
   .scrub { order: 5; flex-basis: 100%; }
 }
