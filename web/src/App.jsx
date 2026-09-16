@@ -1,12 +1,22 @@
 import { useEffect, useState } from "react";
 import KaraokePlayer from "./KaraokePlayer.jsx";
 
+// Le morceau choisi est dans l'URL (#/slug) : rechargement et lien direct
+// (téléphone, TV) ouvrent directement le lecteur.
+const slugFromHash = () => decodeURIComponent(window.location.hash.replace(/^#\/?/, ""));
+
 // Écran d'accueil : liste la bibliothèque (library/index.json) puis, une fois
 // un morceau choisi, affiche le lecteur karaoké.
 export default function App() {
   const [songs, setSongs] = useState(null);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(slugFromHash);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const onHash = () => setSelected(slugFromHash());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   useEffect(() => {
     fetch("/library/index.json")
@@ -15,13 +25,16 @@ export default function App() {
       .catch(() => {
         setSongs([]);
         setError(
-          "Bibliothèque vide. Traite un morceau avec :  python -m karaoke build \"morceau.flac\""
+          "Bibliothèque vide. Traite un morceau avec :  uv run karaoke build \"morceau.flac\""
         );
       });
   }, []);
 
+  const open = (slug) => { window.location.hash = `/${encodeURIComponent(slug)}`; };
+  const back = () => { window.location.hash = ""; };
+
   if (selected) {
-    return <KaraokePlayer slug={selected} onBack={() => setSelected(null)} />;
+    return <KaraokePlayer key={selected} slug={selected} onBack={back} />;
   }
 
   return (
@@ -33,7 +46,7 @@ export default function App() {
         <ul className="songlist">
           {songs.map((s) => (
             <li key={s.slug}>
-              <button onClick={() => setSelected(s.slug)}>
+              <button onClick={() => open(s.slug)}>
                 <span className="badge">{s.hasLyrics ? "🎤" : "🎹"}</span>
                 <span className="song-title">{s.title || s.slug}</span>
                 {s.artist && <span className="song-artist">{s.artist}</span>}

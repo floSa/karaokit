@@ -60,15 +60,26 @@ body {
   margin: 1.1rem 0; font-size: 1.6rem; font-weight: 600;
   color: var(--dim); transition: color .3s, transform .3s, opacity .3s;
   opacity: .5;
+  contain: layout style; /* un changement de ligne ne relaie pas toute la page */
 }
 .line.past { opacity: .35; }
 .line.active { color: var(--text); font-size: 2.3rem; opacity: 1; transform: scale(1.02); }
 .line.future { opacity: .5; }
 
-.word { transition: color .15s; }
+.word { transition: color .15s; white-space: pre-wrap; }
 .line.active .word { color: #aeb6ee; }
 .line.active .word.sung { color: #fff; }
-.line.active .word.singing { color: var(--accent); text-shadow: 0 0 18px var(--accent); }
+/* Mot en cours : remplissage progressif gauche→droite, piloté par une animation
+   CSS (durée/délai posés par le lecteur) — aucun JavaScript par image. */
+@property --p { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
+@keyframes word-fill { from { --p: 0%; } to { --p: 100%; } }
+.line.active .word.singing {
+  color: transparent;
+  background: linear-gradient(90deg, var(--accent) var(--p), #aeb6ee var(--p));
+  -webkit-background-clip: text; background-clip: text;
+  animation-name: word-fill; animation-timing-function: linear; animation-fill-mode: both;
+}
+.player.paused .line.active .word.singing { animation-play-state: paused; }
 
 /* --- Barre d'édition de synchro --- */
 .edittools {
@@ -114,3 +125,13 @@ body {
   color: var(--dim); font-size: .85rem;
 }
 .guide input { accent-color: var(--accent); width: 90px; }
+
+/* --- Mobile / TV étroite --- */
+@media (max-width: 640px) {
+  .player-head { flex-wrap: wrap; gap: .5rem; padding: .7rem 1rem; }
+  .src { display: none; }
+  .line { font-size: 1.25rem; }
+  .line.active { font-size: 1.6rem; }
+  .controls { flex-wrap: wrap; gap: .6rem; padding: .7rem 1rem; }
+  .scrub { order: 5; flex-basis: 100%; }
+}
