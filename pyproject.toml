@@ -1,0 +1,53 @@
+[project]
+name = "karaokit"
+version = "0.2.0"
+description = "Karaoké maison : sépare, synchronise, chante."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "demucs>=4.0.1",
+    "whisperx>=3.4",
+    "syncedlyrics>=1.0",
+    "numpy",
+]
+
+[project.optional-dependencies]
+# Une variante matérielle à choisir : `uv sync --extra gpu` ou `uv sync --extra cpu`.
+cpu = ["torch~=2.8.0", "torchaudio~=2.8.0"]
+gpu = ["torch~=2.8.0", "torchaudio~=2.8.0"]
+
+[project.scripts]
+karaoke = "karaoke.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu128", extra = "gpu" },
+]
+torchaudio = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu128", extra = "gpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["karaoke"]

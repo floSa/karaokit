@@ -14,3 +14,6 @@ scripts/bin/
 # Bibliothèque générée (stems audio volumineux) — on garde l'index vide
 web/public/library/*/
 !web/public/library/index.json
+
+# Encodages en cours (écriture atomique)
+*.part.mp3
