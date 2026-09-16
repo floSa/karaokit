@@ -57,6 +57,11 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--port", type=int, default=8765, help="Port (défaut 8765).")
     p_serve.add_argument("--library", type=Path, default=config.DEFAULT_LIBRARY_DIR,
                          help="Dossier bibliothèque à servir.")
+    p_serve.add_argument("--music", type=Path, action="append",
+                         help="Dossier de musique parcourable depuis l'app (répétable ; "
+                              "défaut : ~/Music et C:\\Users\\<vous>\\Music).")
+    p_serve.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto",
+                         help="Matériel pour les traitements lancés depuis l'app.")
 
     args = parser.parse_args(argv)
 
@@ -68,7 +73,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "serve":
         from .server import serve
-        serve(port=args.port, lib_root=args.library)
+        serve(port=args.port, lib_root=args.library, music_roots=args.music, device=args.device)
         return 0
 
     if args.command == "build":

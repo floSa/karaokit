@@ -31,6 +31,7 @@ avec surlignage mot-à-mot.
 | Garde-fou anti-dérive (`--realign`) | ✅ | rejette un ré-alignement qui dérive (> 1,5 s) |
 | Lecteur : seek, streaming, fluidité | ✅ | HTTP Range, 1er son en ~0,2 s, remplissage du mot en CSS |
 | Découpage des lignes trop longues | ✅ | niveau 3 : une ligne de 200 mots → 44 lignes |
+| Ajout de morceaux depuis l'app web | ✅ | explorateur de ta musique, liste à traiter, progression en direct |
 | Éditeur de synchro (décalage + « caler ici ») | ✅ | serveur `serve` (stdlib) ; sauvegarde JSON/LRC vérifiée |
 
 Reste à explorer : correction LLM des cas tordus (refrains/ad-libs), détection auto
@@ -96,6 +97,19 @@ uv run karaoke serve               # http://localhost:8765
 # 6b) Lecteur web en développement (rechargement à chaud)
 cd web && npm run dev              # http://localhost:5173
 ```
+
+### Ajouter des morceaux depuis l'app
+
+`uv run karaoke serve`, puis **➕ Ajouter des morceaux** :
+1. parcours ta musique (par défaut `~/Music` et `C:\Users\<toi>\Music` ; autre
+   dossier : `karaoke serve --music "/chemin"`, option répétable) ;
+2. coche des morceaux, ou **+ album** pour un dossier entier ; ils s'ajoutent à la
+   liste **À traiter** (langue optionnelle) ;
+3. **🎤 Créer les karaokés** : les morceaux sont traités un par un en arrière-plan,
+   l'avancement s'affiche (séparation, paroles, synchro…) et **▶ chanter** apparaît
+   dès qu'un morceau est prêt. Les morceaux déjà présents sont ignorés.
+
+La file est en mémoire : arrêter le serveur l'annule (les morceaux terminés restent).
 
 **Raccourcis clavier du lecteur** : `Espace` = lecture/pause · `←` / `→` = ±5 s ·
 `Début` = revenir au début. Curseur « guide » pour réintroduire un peu de voix.

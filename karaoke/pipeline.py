@@ -17,13 +17,12 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Callable
 
 from . import align, lrc, lyrics, metadata, separate, transcribe, verify
 from .config import Profile
-from .utils import check_ffmpeg, probe_duration, slugify
-
-# Extensions audio reconnues pour le traitement d'un dossier entier.
-AUDIO_EXTS = {".flac", ".mp3", ".wav", ".m4a", ".ogg", ".opus", ".aac", ".wma"}
+from .jobs import AUDIO_EXTS  # extensions audio reconnues
+from .utils import atomic_write_text, check_ffmpeg, probe_duration, slugify
 
 # Dérive médiane (s) au-delà de laquelle un ré-alignement mot-à-mot est jugé
 # non fiable et rejeté au profit de la synchro en ligne existante.
@@ -73,14 +72,19 @@ def build(
     word_level: bool = True,
     lyrics_future: Future | None = None,
     update_index: bool = True,
-) -> Path:
+    progress: Callable[..., None] | None = None,
+    return_skipped: bool = False,
+):
     """Génère un karaoké complet pour `audio_path`. Renvoie le dossier produit.
 
     realign    : ignore la synchro de ligne en ligne et ré-aligne tout le texte
                  sur la voix (garde-fou anti-dérive).
     word_level : pose le mot-à-mot dans les lignes d'un LRC ligne-à-ligne (défaut).
     lyrics_future : recherche de paroles déjà lancée (mode album).
+    progress   : rappel `progress(étape, **infos)` (file de traitement de l'app web).
+    return_skipped : renvoie (dossier, déjà_présent) au lieu du seul dossier.
     """
+    notify = progress or (lambda *a, **k: None)
     check_ffmpeg()
     audio_path = audio_path.expanduser().resolve()
     if not audio_path.exists():
@@ -92,10 +96,11 @@ def build(
     song_dir = library_dir / slug
     if (song_dir / "karaoke.json").exists() and not (force or realign):
         print(f"⏭  Déjà présent : {song_dir} (--force pour recalculer, --realign pour re-synchroniser)")
-        return song_dir
+        return (song_dir, True) if return_skipped else song_dir
     song_dir.mkdir(parents=True, exist_ok=True)
     duration = probe_duration(audio_path)
 
+    notify("separation", slug=slug, title=title, artist=artist)
     print(f"🎧 Morceau : {artist + ' — ' if artist else ''}{title}")
     print(f"   Device : {profile.device}  |  Sortie : {song_dir}")
 
@@ -116,11 +121,13 @@ def build(
                 stems = separate.separate(audio_path, song_dir, profile)
 
         print("2/4  Récupération des paroles en ligne")
+        notify("lyrics")
         with _timed(timings, "lyrics_wait"):
             lyr = lyrics_future.result()
 
     # Contrôle : une recherche floue peut ramener les paroles d'un autre morceau.
     if lyr and not lyr.trusted:
+        notify("check")
         with _timed(timings, "lyrics_check"):
             ok, score, detected = verify.lyrics_match(stems["vocals"], lyr.text, profile, language)
         shown = f"{score:.2f}" if score is not None else "n/a"
@@ -143,6 +150,7 @@ def build(
 
     lines: list[transcribe.Line]
     lyrics_source: str
+    notify("sync")
 
     if online_lines is not None and not realign:
         # Niveau 1 : LRC synchronisé en ligne.
@@ -199,7 +207,8 @@ def build(
 
     # 4) Écriture des sorties
     print("4/4  Écriture des fichiers")
-    (song_dir / "lyrics.lrc").write_text(lrc.write_lrc(lines, title, artist), encoding="utf-8")
+    notify("writing")
+    atomic_write_text(song_dir / "lyrics.lrc", lrc.write_lrc(lines, title, artist))
 
     timings["total"] = round(time.perf_counter() - t_start, 2)
     manifest = {
@@ -225,15 +234,14 @@ def build(
             for ln in lines
         ],
     }
-    (song_dir / "karaoke.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    # Atomique : le serveur peut lire ce fichier pendant que le traitement tourne.
+    atomic_write_text(song_dir / "karaoke.json", json.dumps(manifest, ensure_ascii=False, indent=2))
 
     if update_index:
         _update_index(library_dir)
     steps = "  ".join(f"{k}={v}s" for k, v in timings.items())
     print(f"✅ Terminé : {song_dir}  ⏱ {steps}")
-    return song_dir
+    return (song_dir, False) if return_skipped else song_dir
 
 
 def build_folder(
@@ -300,6 +308,4 @@ def _update_index(library_dir: Path) -> None:
                 "wordLevel": bool(data.get("wordLevel")),
             }
         )
-    (library_dir / "index.json").write_text(
-        json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    atomic_write_text(library_dir / "index.json", json.dumps(entries, ensure_ascii=False, indent=2))

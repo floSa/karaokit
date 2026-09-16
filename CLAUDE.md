@@ -38,7 +38,7 @@ uv run karaoke build morceau.flac --realign       # ignorer les timecodes en lig
 uv run karaoke build morceau.flac --force         # recalcule TOUT, y compris Demucs
 uv run karaoke list
 uv run karaoke export <slug>                      # vidéo MP4 ; 'all' pour tous
-uv run karaoke serve [--library DIR]              # http://localhost:8765 : lecteur + éditeur
+uv run karaoke serve [--library DIR] [--music DIR]  # :8765 — lecteur, éditeur, ajout de morceaux
 
 # Tests unitaires (logique pure)
 uv run --group dev pytest tests/                  # ou : uv run python tests/test_core.py
@@ -95,6 +95,14 @@ L'app web lit ces fichiers ; elle n'appelle jamais Python sauf pour l'éditeur.
 - `server.py` gère **HTTP Range (206)** — sans ça le seek audio repart de 0 dans
   Chrome —, envoi en flux, keep-alive, ETag/304. L'éditeur réécrit
   `karaoke.json` + `lyrics.lrc` + `index.json` via `POST /api/save/<slug>`. Le lecteur en mode Vite (`:5173`) vise `:8765` par CORS.
+
+**Ajout depuis l'app web** : `server.py` expose `/api/music` (explorateur limité aux
+racines `--music`, défaut `server.default_music_roots()`) et `/api/jobs`. `jobs.JobQueue`
+traite la file dans UN thread de fond du serveur (modèles gardés en mémoire) en
+appelant `pipeline.build(progress=…, return_skipped=True)` ; l'app web
+(`JobsPanel.jsx`) interroge `/api/jobs` toutes les 1,5 s. Écritures de
+`karaoke.json`/`index.json` atomiques (`utils.atomic_write_text`) car le serveur les
+sert pendant le traitement. Routes front : `#/<slug>` lecteur, `#/:ajouter` ajout.
 
 **Types partagés** : `transcribe.Line` / `transcribe.Word` sont la représentation
 interne commune (produite par `align`, `transcribe`, et le parsing `lrc`).

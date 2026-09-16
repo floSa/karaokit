@@ -67,7 +67,8 @@ Le niveau 1 coûte ~2 s de plus que la séparation ; le niveau 2 ne dépend d'au
 | `transcribe.py` | **Brique 3 / niveau 3** — transcription + alignement (WhisperX) ; découpage des lignes longues. |
 | `pipeline.py` | Orchestration : enchaîne les briques, cache des stems, garde-fou anti-dérive, traitement d'album. |
 | `export_video.py` | Export vidéo MP4 (sous-titres ASS avec effet karaoké `\k`). |
-| `server.py` | Serveur local (stdlib) : app + bibliothèque (Range 206, flux, ETag), sauvegarde des corrections. |
+| `server.py` | Serveur local (stdlib) : app + bibliothèque (Range 206, flux, ETag), sauvegarde des corrections, explorateur de musique, API de la file. |
+| `jobs.py` | File de traitement lancée depuis l'app web (thread de fond, progression par étape). |
 | `cli.py` / `__main__.py` | Interface `uv run karaoke {build,list,export,serve}`. |
 
 ## Structure de données produite
@@ -114,6 +115,9 @@ Chaque morceau donne un dossier `web/public/library/<slug>/` :
   mots selon `audio.currentTime`. React ne se re-rend qu'au changement de mot ; le
   remplissage progressif du mot en cours est une animation CSS.
 - Le morceau ouvert est dans l'URL (`#/<slug>`).
+- `AddSongs.jsx` parcourt `GET /api/music?path=…`, compose la liste à traiter et
+  l'envoie en `POST /api/jobs` ; `JobsPanel.jsx` suit `GET /api/jobs` (étape, durée,
+  erreur) et recharge la bibliothèque quand un morceau est prêt.
 - **Éditeur** : les corrections sont envoyées en `POST /api/save/<slug>` au serveur
   `karaoke serve`, qui réécrit `karaoke.json` + `lyrics.lrc` + `index.json`.
 

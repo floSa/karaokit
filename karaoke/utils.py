@@ -87,6 +87,13 @@ def probe_duration(path: Path) -> float | None:
         return None
 
 
+def atomic_write_text(path: Path, text: str) -> None:
+    """Écrit via un fichier temporaire + renommage : jamais de fichier à moitié écrit."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(path)
+
+
 def check_ffmpeg() -> None:
     """Vérifie que ffmpeg est accessible ; lève une erreur claire sinon."""
     subprocess.run(

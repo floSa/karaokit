@@ -11,7 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from karaoke import lrc
 from karaoke.align import _normalize, _rebuild_lines, interpolate_words
 from karaoke.lyrics import best_search_match, clean_title
-from karaoke.server import parse_range
+from karaoke.jobs import JobQueue, expand_audio
+from karaoke.server import list_music, parse_range
 from karaoke.transcribe import remove_overlaps
 from karaoke.verify import MIN_OVERLAP, overlap
 from karaoke.export_video import _ass_time, _karaoke_text, build_ass
@@ -171,6 +172,39 @@ def test_parse_range():
     assert parse_range("bytes=50-500", 100) == (50, 99)
     assert parse_range("bytes=100-", 100) is False
     assert parse_range("bytes=0-1,5-6", 100) is None
+
+
+def test_list_music_stays_inside_roots(tmp_path=None):
+    import tempfile
+
+    root = Path(tempfile.mkdtemp())
+    (root / "Album").mkdir()
+    (root / "Album" / "01 - Titre.flac").write_bytes(b"")
+    (root / "Album" / "cover.jpg").write_bytes(b"")
+    (root / ".cache").mkdir()
+    listing = list_music([root], str(root))
+    assert [d["name"] for d in listing["dirs"]] == ["Album"] and listing["parent"] is None
+    album = list_music([root], str(root / "Album"))
+    assert [f["name"] for f in album["files"]] == ["01 - Titre.flac"]  # images ignorées
+    assert album["parent"] == str(root)
+    for escape in ("/etc", str(root / ".." )):
+        try:
+            list_music([root], escape)
+            raise AssertionError("sortie des racines acceptée")
+        except PermissionError:
+            pass
+    assert expand_audio([root / "Album"]) == [root / "Album" / "01 - Titre.flac"]
+
+
+def test_job_queue_dedupe_and_cancel():
+    q = JobQueue(Path("/tmp"))
+    q._thread = object()  # pas de thread de fond : on teste la seule logique de file
+    a = q.submit([Path("/m/a.flac"), Path("/m/b.flac"), Path("/m/a.flac")])
+    assert [j.name for j in a] == ["a", "b"]
+    assert q.submit([Path("/m/a.flac")]) == []  # déjà en attente
+    assert q.cancel(a[0].id) and not q.cancel(a[0].id)
+    assert [j["status"] for j in q.snapshot()] == ["cancelled", "queued"]
+    assert q.clear_finished() == 1 and len(q.snapshot()) == 1
 
 
 def _run_all():

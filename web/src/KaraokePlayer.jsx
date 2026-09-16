@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { apiBase } from "./api.js";
 
 // Lecteur karaoké : joue l'instrumental (+ voix-guide optionnelle) et surligne
 // les paroles mot-à-mot en fonction du temps de lecture.
@@ -20,13 +21,6 @@ export default function KaraokePlayer({ slug, onBack }) {
   const [editLines, setEditLines] = useState(null);
   const [selIdx, setSelIdx] = useState(-1);
   const [saveMsg, setSaveMsg] = useState("");
-
-  // En dev (Vite:5173) l'API de sauvegarde tourne sur le serveur Python (8765) ;
-  // servi par `karaoke serve`, c'est la même origine.
-  const apiBase =
-    typeof window !== "undefined" && window.location.port === "5173"
-      ? `http://${window.location.hostname}:8765`
-      : "";
 
   const instruRef = useRef(null);
   const vocalsRef = useRef(null);

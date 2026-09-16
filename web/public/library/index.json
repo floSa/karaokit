@@ -1,78 +1,50 @@
 [
   {
-    "slug": "demo-karaoke-maison",
-    "title": "Démo",
-    "artist": "Karaoké maison",
-    "hasLyrics": true,
-    "wordLevel": false
-  },
-  {
-    "slug": "hippie-hourrah-au-centre-du-paysage",
-    "title": "Au centre du paysage",
-    "artist": "Hippie Hourrah",
+    "slug": "antoine-villoutreix-les-vieux-souliers",
+    "title": "Les vieux souliers",
+    "artist": "Antoine Villoutreix",
     "hasLyrics": true,
     "wordLevel": true
   },
   {
-    "slug": "hippie-hourrah-il-y-a-eu-un-soir-1",
-    "title": "Il y a eu un soir #1",
-    "artist": "Hippie Hourrah",
+    "slug": "rihanna-sos-album-version",
+    "title": "SOS (Album Version)",
+    "artist": "Rihanna",
     "hasLyrics": true,
     "wordLevel": true
   },
   {
-    "slug": "hippie-hourrah-les-murs",
-    "title": "Les murs",
-    "artist": "Hippie Hourrah",
+    "slug": "rihanna-unfaithful-album-version",
+    "title": "Unfaithful (Album Version)",
+    "artist": "Rihanna",
     "hasLyrics": true,
     "wordLevel": true
   },
   {
-    "slug": "hippie-hourrah-nuits-insondables",
-    "title": "Nuits insondables",
-    "artist": "Hippie Hourrah",
+    "slug": "sebastien-tellier-benny",
+    "title": "Benny",
+    "artist": "Sébastien Tellier",
     "hasLyrics": true,
     "wordLevel": true
   },
   {
-    "slug": "hippie-hourrah-or-aux-dents-1",
-    "title": "Or aux dents #1",
-    "artist": "Hippie Hourrah",
+    "slug": "sebastien-tellier-broadway",
+    "title": "Broadway",
+    "artist": "Sébastien Tellier",
     "hasLyrics": true,
     "wordLevel": true
   },
   {
-    "slug": "hippie-hourrah-or-aux-dents-2",
-    "title": "Or aux dents #2",
-    "artist": "Hippie Hourrah",
+    "slug": "sebastien-tellier-bye-bye",
+    "title": "Bye-Bye",
+    "artist": "Sébastien Tellier",
     "hasLyrics": true,
     "wordLevel": true
   },
   {
-    "slug": "hippie-hourrah-pinceau-au-tombeau",
-    "title": "Pinceau au tombeau",
-    "artist": "Hippie Hourrah",
-    "hasLyrics": true,
-    "wordLevel": true
-  },
-  {
-    "slug": "hippie-hourrah-pur-sang-rouge",
-    "title": "Pur sang rouge",
-    "artist": "Hippie Hourrah",
-    "hasLyrics": true,
-    "wordLevel": true
-  },
-  {
-    "slug": "hippie-hourrah-revenons-au-debut",
-    "title": "Revenons au début",
-    "artist": "Hippie Hourrah",
-    "hasLyrics": true,
-    "wordLevel": true
-  },
-  {
-    "slug": "hippie-hourrah-rorschach",
-    "title": "Rorschach",
-    "artist": "Hippie Hourrah",
+    "slug": "sebastien-tellier-la-ritournelle",
+    "title": "La ritournelle",
+    "artist": "Sébastien Tellier",
     "hasLyrics": true,
     "wordLevel": true
   }
