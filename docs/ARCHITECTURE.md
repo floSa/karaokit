@@ -69,6 +69,7 @@ Le niveau 1 coûte ~2 s de plus que la séparation ; le niveau 2 ne dépend d'au
 | `export_video.py` | Export vidéo MP4 (sous-titres ASS avec effet karaoké `\k`). |
 | `server.py` | Serveur local (stdlib) : app + bibliothèque (Range 206, flux, ETag), sauvegarde des corrections, explorateur de musique, API de la file. |
 | `jobs.py` | File de traitement lancée depuis l'app web (thread de fond, progression par étape). |
+| `playlist.py` | Playlist enregistrée (`library/playlist.json`) et index de recherche de la musique de l'ordinateur. |
 | `cli.py` / `__main__.py` | Interface `uv run karaoke {build,list,export,serve}`. |
 
 ## Structure de données produite
@@ -109,15 +110,16 @@ Chaque morceau donne un dossier `web/public/library/<slug>/` :
 
 ## Flux de l'app web (`web/`)
 
-- `App.jsx` charge `library/index.json` et affiche la liste.
+- `App.jsx` : mise en page (playlist à gauche, recherche ou lecteur au centre) et enchaînement des titres.
 - `KaraokePlayer.jsx` charge `<slug>/karaoke.json`, joue `instrumental.mp3`
   (+ `vocals.mp3`, chargé seulement si la voix-guide est activée) et surligne les
   mots selon `audio.currentTime`. React ne se re-rend qu'au changement de mot ; le
   remplissage progressif du mot en cours est une animation CSS.
 - Le morceau ouvert est dans l'URL (`#/<slug>`).
-- `AddSongs.jsx` parcourt `GET /api/music?path=…`, compose la liste à traiter et
-  l'envoie en `POST /api/jobs` ; `JobsPanel.jsx` suit `GET /api/jobs` (étape, durée,
-  erreur) et recharge la bibliothèque quand un morceau est prêt.
+- `Playlist.jsx` / `usePlaylist.js` : playlist à gauche (`GET/POST/PUT/DELETE /api/playlist`),
+  glisser-déposer, état de préparation de chaque titre, lecture enchaînée.
+- `Home.jsx` : recherche (`GET /api/search?q=`, bibliothèque + fichiers indexés),
+  bibliothèque, et `Browser.jsx` (`GET /api/music?path=`) pour parcourir les dossiers.
 - **Éditeur** : les corrections sont envoyées en `POST /api/save/<slug>` au serveur
   `karaoke serve`, qui réécrit `karaoke.json` + `lyrics.lrc` + `index.json`.
 

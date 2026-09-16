@@ -17,3 +17,6 @@ web/public/library/*/
 
 # Encodages en cours (écriture atomique)
 *.part.mp3
+
+# Playlist de lecture (données personnelles)
+web/public/library/playlist.json

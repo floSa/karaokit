@@ -96,13 +96,20 @@ L'app web lit ces fichiers ; elle n'appelle jamais Python sauf pour l'éditeur.
   Chrome —, envoi en flux, keep-alive, ETag/304. L'éditeur réécrit
   `karaoke.json` + `lyrics.lrc` + `index.json` via `POST /api/save/<slug>`. Le lecteur en mode Vite (`:5173`) vise `:8765` par CORS.
 
-**Ajout depuis l'app web** : `server.py` expose `/api/music` (explorateur limité aux
-racines `--music`, défaut `server.default_music_roots()`) et `/api/jobs`. `jobs.JobQueue`
-traite la file dans UN thread de fond du serveur (modèles gardés en mémoire) en
-appelant `pipeline.build(progress=…, return_skipped=True)` ; l'app web
-(`JobsPanel.jsx`) interroge `/api/jobs` toutes les 1,5 s. Écritures de
-`karaoke.json`/`index.json` atomiques (`utils.atomic_write_text`) car le serveur les
-sert pendant le traitement. Routes front : `#/<slug>` lecteur, `#/:ajouter` ajout.
+**Interface web** : playlist à gauche (`Playlist.jsx` + `usePlaylist.js`), recherche /
+bibliothèque / explorateur au centre (`Home.jsx`, `Browser.jsx`), lecteur
+(`KaraokePlayer.jsx`) à la place du centre pendant la lecture. Routes : `#/<slug>`
+lecteur, `#/:parcourir` explorateur. En fin de chanson, `App.jsx` enchaîne sur le
+prochain titre PRÊT de la playlist (ceux en préparation sont sautés).
+
+**Côté serveur** : `playlist.Playlist` (une seule playlist, `library/playlist.json`,
+gitignoré) — un élément est un `slug` de la bibliothèque ou un `path` de
+l'ordinateur envoyé à `jobs.JobQueue` (UN thread de fond, modèles gardés en
+mémoire, `pipeline.build(progress=…, return_skipped=True)`) ; il reçoit son slug
+quand le traitement se termine. `playlist.MusicIndex` indexe les racines `--music`
+(défaut `server.default_music_roots()`, ~3 s pour 3 400 fichiers) pour
+`/api/search`. `/api/music` = explorateur limité aux racines. Écritures JSON
+atomiques (`utils.atomic_write_text`) car le serveur les sert pendant le traitement.
 
 **Types partagés** : `transcribe.Line` / `transcribe.Word` sont la représentation
 interne commune (produite par `align`, `transcribe`, et le parsing `lrc`).

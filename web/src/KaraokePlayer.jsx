@@ -9,7 +9,7 @@ import { apiBase } from "./api.js";
 // le compteur et la barre. Le remplissage progressif du mot en cours est une
 // animation CSS (durée = durée du mot, délai négatif = déjà écoulé) : zéro JS
 // par image. Seule la ligne active se re-rend ; les autres sont mémoïsées.
-export default function KaraokePlayer({ slug, onBack }) {
+export default function KaraokePlayer({ slug, onBack, autoPlay = false, onEnded, upNext }) {
   const [data, setData] = useState(null);
   const [time, setTime] = useState(0); // horloge « lente » (4 Hz) : compteur, barre, pré-roll
   const [cursor, setCursor] = useState({ line: -1, word: -1, seek: 0 }); // position fine
@@ -202,7 +202,7 @@ export default function KaraokePlayer({ slug, onBack }) {
           <strong>{data.title}</strong>
           {data.artist && <span> — {data.artist}</span>}
         </div>
-        <div className="src">{data.lyrics_source}</div>
+        <div className="src">{upNext ? `ensuite : ${upNext}` : data.lyrics_source}</div>
         {saveMsg && <span className="savemsg">{saveMsg}</span>}
         {data.video && !editing && (
           <a className="dl" href={`${base}/${data.video}`} download>⬇︎ vidéo</a>
@@ -283,7 +283,8 @@ export default function KaraokePlayer({ slug, onBack }) {
         onLoadedMetadata={(e) => setDuration(e.target.duration)}
         onPlay={onInstruPlay}
         onPause={onInstruPause}
-        onEnded={onInstruPause}
+        onEnded={() => { onInstruPause(); onEnded?.(); }}
+        autoPlay={autoPlay}
         onWaiting={() => setBuffering(true)}
         onPlaying={() => setBuffering(false)}
         onSeeking={() => vocalsRef.current && (vocalsRef.current.currentTime = instruRef.current.currentTime)}

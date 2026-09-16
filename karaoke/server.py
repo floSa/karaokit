@@ -9,6 +9,11 @@ d'enregistrer des corrections de synchro depuis l'éditeur du lecteur.
 - POST /api/jobs        -> ajoute des morceaux/dossiers à traiter {paths, language}
 - DELETE /api/jobs/<id> -> retire un morceau encore en attente
 - POST /api/jobs/clear  -> efface les traitements terminés
+- GET  /api/search?q=…  -> recherche : bibliothèque + musique de l'ordinateur (index)
+- GET  /api/playlist    -> playlist de lecture + état de préparation de chaque titre
+- POST /api/playlist    -> ajoute {slugs, paths, language} (fichiers -> traitement)
+- PUT  /api/playlist    -> réordonne {ids}
+- DELETE /api/playlist/<id> | /api/playlist -> retire un titre | vide la playlist
 
 Aucune dépendance externe : http.server de la bibliothèque standard.
 
@@ -33,6 +38,7 @@ from pathlib import Path
 
 from . import config, lrc
 from .jobs import AUDIO_EXTS, JobQueue, expand_audio
+from .playlist import MusicIndex, Playlist, matches
 from .pipeline import _update_index
 from .transcribe import Line, Word
 from .utils import atomic_write_text
@@ -123,8 +129,18 @@ def parse_range(header: str | None, size: int) -> tuple[int, int] | None | bool:
     return start, min(end, size - 1)
 
 
+def search_library(lib_root: Path, query: str, limit: int = 60) -> list[dict]:
+    try:
+        entries = json.loads((lib_root / "index.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    hits = [e for e in entries if matches(query, f"{e.get('title', '')} {e.get('artist', '')}")]
+    return hits[:limit]
+
+
 def make_handler(app_root: Path, lib_root: Path, music_roots: list[Path] | None = None,
-                 jobs: JobQueue | None = None):
+                 jobs: JobQueue | None = None, playlist: Playlist | None = None,
+                 index: MusicIndex | None = None):
     music_roots = music_roots or []
 
     class Handler(BaseHTTPRequestHandler):
@@ -132,7 +148,7 @@ def make_handler(app_root: Path, lib_root: Path, music_roots: list[Path] | None 
 
         def _cors(self):
             self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
         def do_OPTIONS(self):
@@ -151,6 +167,18 @@ def make_handler(app_root: Path, lib_root: Path, music_roots: list[Path] | None 
                     return self._json(403, {"error": str(exc)})
             if path == "/api/jobs":
                 return self._json(200, {"jobs": jobs.snapshot() if jobs else [], "enabled": jobs is not None})
+            if path == "/api/playlist" and playlist:
+                return self._json(200, {"items": playlist.snapshot()})
+            if path == "/api/search":
+                qs = urllib.parse.parse_qs(url.query)
+                q = (qs.get("q", [""])[0]).strip()
+                if qs.get("refresh") and index:
+                    index.refresh()
+                return self._json(200, {
+                    "library": search_library(lib_root, q) if q else [],
+                    "files": index.search(q) if (q and index) else [],
+                    "index": index.status() if index else None,
+                })
             if path.startswith("/library/"):
                 self._send_file(lib_root, lib_root / path[len("/library/"):])
             else:
@@ -167,8 +195,33 @@ def make_handler(app_root: Path, lib_root: Path, music_roots: list[Path] | None 
             length = int(self.headers.get("Content-Length", "0"))
             return json.loads(self.rfile.read(length) or b"{}")
 
+        def _allowed_files(self, raw_paths) -> list[Path]:
+            wanted = [Path(p) for p in raw_paths]
+            if any(not any(_within(r, p) for r in music_roots) for p in wanted):
+                raise PermissionError("chemin hors des racines musicales")
+            return expand_audio(wanted)
+
+        def do_PUT(self):
+            path = urllib.parse.urlparse(self.path).path
+            if path == "/api/playlist" and playlist:
+                try:
+                    playlist.reorder([int(i) for i in self._read_json().get("ids", [])])
+                except (ValueError, TypeError) as exc:
+                    return self._json(400, {"error": str(exc)})
+                return self._json(200, {"items": playlist.snapshot()})
+            return self._json(404, {"error": "route inconnue"})
+
         def do_DELETE(self):
             path = urllib.parse.urlparse(self.path).path
+            if playlist and path == "/api/playlist":
+                playlist.clear()
+                return self._json(200, {"items": []})
+            if playlist and path.startswith("/api/playlist/"):
+                try:
+                    ok = playlist.remove(int(path.rsplit("/", 1)[1]))
+                except ValueError:
+                    ok = False
+                return self._json(200 if ok else 404, {"ok": ok, "items": playlist.snapshot()})
             if jobs and path.startswith("/api/jobs/"):
                 try:
                     ok = jobs.cancel(int(path.rsplit("/", 1)[1]))
@@ -181,15 +234,24 @@ def make_handler(app_root: Path, lib_root: Path, music_roots: list[Path] | None 
             path = urllib.parse.urlparse(self.path).path
             if path == "/api/jobs/clear" and jobs:
                 return self._json(200, {"cleared": jobs.clear_finished()})
+            if path == "/api/playlist" and playlist:
+                try:
+                    payload = self._read_json()
+                    files = self._allowed_files(payload.get("paths", []))
+                    added = playlist.add([str(s) for s in payload.get("slugs", [])], files,
+                                         payload.get("language"))
+                except PermissionError as exc:
+                    return self._json(403, {"error": str(exc)})
+                except Exception as exc:
+                    return self._json(400, {"error": str(exc)})
+                return self._json(200, {"added": added, "items": playlist.snapshot()})
             if path == "/api/jobs" and jobs:
                 try:
                     payload = self._read_json()
-                    wanted = [Path(p) for p in payload.get("paths", [])]
-                    allowed = [p for p in wanted if any(_within(r, p) for r in music_roots)]
-                    if len(allowed) != len(wanted):
-                        return self._json(403, {"error": "chemin hors des racines musicales"})
-                    files = expand_audio(allowed)
+                    files = self._allowed_files(payload.get("paths", []))
                     added = jobs.submit(files, payload.get("language"))
+                except PermissionError as exc:
+                    return self._json(403, {"error": str(exc)})
                 except Exception as exc:
                     return self._json(400, {"error": str(exc)})
                 return self._json(200, {"added": len(added), "found": len(files)})
@@ -324,7 +386,11 @@ def serve(port: int = 8765, app_root: Path | None = None, lib_root: Path | None 
             f"App web non construite ({app_root}). Lance d'abord : cd web && npm run build"
         )
     jobs = JobQueue(lib_root, device=device)
-    httpd = ThreadingHTTPServer(("0.0.0.0", port), make_handler(app_root, lib_root, music_roots, jobs))
+    playlist = Playlist(lib_root, jobs)
+    index = MusicIndex(music_roots)
+    index.refresh()  # indexation en tâche de fond (~3 s pour quelques milliers de morceaux)
+    httpd = ThreadingHTTPServer(("0.0.0.0", port),
+                                make_handler(app_root, lib_root, music_roots, jobs, playlist, index))
     httpd.daemon_threads = True
     print(f"🎤 Karaoké (avec éditeur) sur http://localhost:{port}  — Ctrl+C pour arrêter")
     print("   Musique parcourable : " + (", ".join(map(str, music_roots)) or "aucune (--music DOSSIER)"))

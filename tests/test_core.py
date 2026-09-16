@@ -12,6 +12,7 @@ from karaoke import lrc
 from karaoke.align import _normalize, _rebuild_lines, interpolate_words
 from karaoke.lyrics import best_search_match, clean_title
 from karaoke.jobs import JobQueue, expand_audio
+from karaoke.playlist import Playlist, matches
 from karaoke.server import list_music, parse_range
 from karaoke.transcribe import remove_overlaps
 from karaoke.verify import MIN_OVERLAP, overlap
@@ -205,6 +206,37 @@ def test_job_queue_dedupe_and_cancel():
     assert q.cancel(a[0].id) and not q.cancel(a[0].id)
     assert [j["status"] for j in q.snapshot()] == ["cancelled", "queued"]
     assert q.clear_finished() == 1 and len(q.snapshot()) == 1
+
+
+def test_search_matches_ignores_accents_and_order():
+    assert matches("tellier sebastien", "Sébastien Tellier — Bye-Bye")
+    assert matches("BYE", "Sébastien Tellier — Bye-Bye")
+    assert not matches("tellier rihanna", "Sébastien Tellier — Bye-Bye")
+
+
+def test_playlist_add_reorder_remove_persist():
+    import json as _json
+    import tempfile
+
+    lib = Path(tempfile.mkdtemp())
+    for slug in ("a", "b"):
+        (lib / slug).mkdir()
+        (lib / slug / "karaoke.json").write_text(_json.dumps({"slug": slug, "title": slug.upper()}))
+    q = JobQueue(lib)
+    q._thread = object()  # pas de traitement réel
+    pl = Playlist(lib, q)
+    pl.add(["a", "b", "inconnu"], [Path("/m/c.flac")])
+    items = pl.snapshot()
+    assert [i["title"] for i in items] == ["A", "B", "c"]
+    assert [i["state"] for i in items] == ["ready", "ready", "queued"]
+    ids = [i["id"] for i in items]
+    pl.reorder([ids[2], ids[0], ids[1]])
+    pl.remove(ids[1])
+    assert [i["title"] for i in pl.snapshot()] == ["c", "A"]
+    reloaded = Playlist(lib, q)  # relu depuis playlist.json
+    assert [i["title"] for i in reloaded.snapshot()] == ["c", "A"]
+    reloaded.remove(ids[2])
+    assert q.snapshot()[0]["status"] == "cancelled"  # retiré avant traitement -> annulé
 
 
 def _run_all():

@@ -31,7 +31,7 @@ avec surlignage mot-à-mot.
 | Garde-fou anti-dérive (`--realign`) | ✅ | rejette un ré-alignement qui dérive (> 1,5 s) |
 | Lecteur : seek, streaming, fluidité | ✅ | HTTP Range, 1er son en ~0,2 s, remplissage du mot en CSS |
 | Découpage des lignes trop longues | ✅ | niveau 3 : une ligne de 200 mots → 44 lignes |
-| Ajout de morceaux depuis l'app web | ✅ | explorateur de ta musique, liste à traiter, progression en direct |
+| Playlist + recherche dans l'app web | ✅ | glisser-déposer, préparation automatique, lecture enchaînée |
 | Éditeur de synchro (décalage + « caler ici ») | ✅ | serveur `serve` (stdlib) ; sauvegarde JSON/LRC vérifiée |
 
 Reste à explorer : correction LLM des cas tordus (refrains/ad-libs), détection auto
@@ -98,18 +98,21 @@ uv run karaoke serve               # http://localhost:8765
 cd web && npm run dev              # http://localhost:5173
 ```
 
-### Ajouter des morceaux depuis l'app
+### L'app : playlist, recherche, lecture enchaînée
 
-`uv run karaoke serve`, puis **➕ Ajouter des morceaux** :
-1. parcours ta musique (par défaut `~/Music` et `C:\Users\<toi>\Music` ; autre
-   dossier : `karaoke serve --music "/chemin"`, option répétable) ;
-2. coche des morceaux, ou **+ album** pour un dossier entier ; ils s'ajoutent à la
-   liste **À traiter** (langue optionnelle) ;
-3. **🎤 Créer les karaokés** : les morceaux sont traités un par un en arrière-plan,
-   l'avancement s'affiche (séparation, paroles, synchro…) et **▶ chanter** apparaît
-   dès qu'un morceau est prêt. Les morceaux déjà présents sont ignorés.
+`uv run karaoke serve` puis http://localhost:8765 :
+- **À gauche, la playlist** : glisser-déposer pour réordonner, ✕ pour retirer, clic
+  sur un titre prêt pour le chanter. Les titres s'enchaînent en fin de chanson
+  (case « Enchaîner les titres »). Elle est enregistrée côté serveur.
+- **Au centre, la recherche** : un titre ou un artiste, dans la bibliothèque (prêts
+  à chanter) **et** dans la musique de l'ordinateur. « + » ajoute un titre ; cocher
+  plusieurs lignes puis « Ajouter à la playlist » en ajoute plusieurs.
+- **📁 Parcourir l'ordinateur** : explorateur de dossiers, « + album » pour un dossier.
+- Un morceau pris sur l'ordinateur est **préparé automatiquement**, un par un ;
+  son avancement s'affiche dans la playlist (séparation, paroles, synchro…).
 
-La file est en mémoire : arrêter le serveur l'annule (les morceaux terminés restent).
+Dossiers de musique par défaut : `~/Music` et `C:\Users\<toi>\Music` ; sinon
+`karaoke serve --music "/chemin"` (option répétable).
 
 **Raccourcis clavier du lecteur** : `Espace` = lecture/pause · `←` / `→` = ±5 s ·
 `Début` = revenir au début. Curseur « guide » pour réintroduire un peu de voix.
